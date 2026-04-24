@@ -49,10 +49,7 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(
             Manifest.permission.CAMERA,
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.VIBRATE,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            Manifest.permission.VIBRATE
         )
 
         // Drowsiness detection constants
@@ -415,31 +412,27 @@ class MainActivity : AppCompatActivity() {
         // 🔹 Get the latest location before sending SOS
         Utils.getLocationInfo { locationInfo ->
 
-            val message = "EMERGENCY ALERT: Driver drowsiness detected for ${drowsyDuration / 1000} seconds at $timestamp. $locationInfo"
+            val message = "EMERGENCY ALERT: Driver drowze detected for ${drowsyDuration / 1000} seconds at $timestamp. $locationInfo"
 
             // Vibration and Alert Sound
             vibratePhone()
             playAlarm()
 
             // Update UI
-            updateStatus("DROWSY ALERT! WAKE UP!\nSOS Sent")
-            updateAlertStatus("Sending SOS messages...", R.color.warning_yellow)
+            updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
+            updateAlertStatus("Alert prepared for emergency contacts", R.color.warning_yellow)
 
             Thread {
                 try {
-                    for (contact in contacts) {
-                        Utils.sendSMS(contact.phoneNumber, message)
-                        Thread.sleep(500)
-                    }
-
+                    // Skip SMS sending as permission is removed
                     runOnUiThread {
-                        updateAlertStatus("SOS Sent Successfully", R.color.success_green)
-                        updateStatus("DROWSY ALERT! WAKE UP!\nSOS Sent")
+                        updateAlertStatus("Alert prepared successfully", R.color.success_green)
+                        updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error sending SOS messages", e)
+                    Log.e(TAG, "Error preparing alert", e)
                     runOnUiThread {
-                        updateAlertStatus("Failed to send SOS messages", R.color.error_red)
+                        updateAlertStatus("Failed to prepare alert", R.color.error_red)
                     }
                 } finally {
                     isSendingMessages = false

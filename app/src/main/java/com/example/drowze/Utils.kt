@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
-import android.telephony.SmsManager
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
@@ -43,22 +42,6 @@ object Utils {
         }
     }
 
-    fun sendSMS(phoneNumber: String, message: String) {
-        try {
-            val smsManager = SmsManager.getDefault()
-
-            // Split message if it's too long
-            val messageParts = smsManager.divideMessage(message)
-            smsManager.sendMultipartTextMessage(phoneNumber, null, messageParts, null, null)
-
-            Log.d("Utils", "SMS sent to $phoneNumber")
-        } catch (e: Exception) {
-            Log.e("Utils", "Failed to send SMS", e)
-            throw e
-        }
-    }
-
-    // Helper function to format timestamps in a user-friendly way
     fun formatTimestamp(timestamp: Long): String {
         val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
         return sdf.format(java.util.Date(timestamp))
