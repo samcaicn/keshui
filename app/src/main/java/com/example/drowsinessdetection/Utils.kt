@@ -162,7 +162,7 @@ object Utils {
                 lastKnownLocation = location
                 val lat = location.latitude
                 val lng = location.longitude
-                callback("Current location: https://www.tuptup.top/?q=${lat},${lng}")
+                callback("Current location: https://map.baidu.com/?q=${lat},${lng}")
             } else {
                 // Request a fresh location update
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
@@ -177,7 +177,7 @@ object Utils {
                             lastKnownLocation = newLocation
                             val lat = newLocation.latitude
                             val lng = newLocation.longitude
-                            callback("Current location: https://www.tuptup.top/?q=${lat},${lng}")
+                            callback("Current location: https://map.baidu.com/?q=${lat},${lng}")
                         }
                     }
                 }
