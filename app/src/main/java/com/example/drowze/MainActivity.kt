@@ -1,4 +1,4 @@
-package com.example.drowsinessdetection
+package com.example.drowze
 
 import android.os.Looper
 

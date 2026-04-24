@@ -24,7 +24,7 @@
         android:theme="@style/AppTheme">
 
         <activity
-            android:name="com.example.drowsinessdetection.MainActivity"
+            android:name="com.example.drowze.MainActivity"
 
             android:exported="true"
             android:screenOrientation="portrait">

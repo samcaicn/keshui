@@ -6,12 +6,12 @@ plugins {
 
 android {
 
-    namespace "com.example.drowsinessdetection"  // Replace with your actual package name
+    namespace "com.example.drowze"  // Replace with your actual package name
 
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.drowsinessdetection"
+        applicationId "com.example.drowze"
         minSdk 26
         targetSdk 34
         versionCode 1

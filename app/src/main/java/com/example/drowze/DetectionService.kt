@@ -1,4 +1,4 @@
-package com.example.drowsinessdetection
+package com.example.drowze
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -18,11 +18,11 @@ class DetectionService : Service() {
     companion object {
         private const val TAG = "DetectionService"
         private const val NOTIFICATION_ID = 1001
-        private const val CHANNEL_ID = "drowsiness_detection_channel"
+        private const val CHANNEL_ID = "drowze_detection_channel"
         
         // Intent actions
-        const val ACTION_START_DETECTION = "com.example.drowsinessdetection.START_DETECTION"
-        const val ACTION_STOP_DETECTION = "com.example.drowsinessdetection.STOP_DETECTION"
+        const val ACTION_START_DETECTION = "com.example.drowze.START_DETECTION"
+        const val ACTION_STOP_DETECTION = "com.example.drowze.STOP_DETECTION"
     }
     
     private var isRunning = false
@@ -50,10 +50,10 @@ class DetectionService : Service() {
         if (isRunning) return
         
         isRunning = true
-        Log.d(TAG, "Starting drowsiness detection service")
+        Log.d(TAG, "Starting drowze detection service")
         
         // Start foreground service with notification
-        startForeground(NOTIFICATION_ID, createNotification("Drowsiness detection is active"))
+        startForeground(NOTIFICATION_ID, createNotification("drowze detection is active"))
         
         // Start detection loop
         executor.scheduleAtFixedRate({
@@ -68,7 +68,7 @@ class DetectionService : Service() {
         if (!isRunning) return
         
         isRunning = false
-        Log.d(TAG, "Stopping drowsiness detection service")
+        Log.d(TAG, "Stopping drowze detection service")
         
         // Stop the foreground service
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -85,10 +85,10 @@ class DetectionService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Drowsiness Detection Service",
+                "drowze Detection Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Alerts when driver appears drowsy"
+                description = "Alerts when driver appears drowze"
                 enableLights(false)
                 enableVibration(false)
             }
@@ -100,7 +100,7 @@ class DetectionService : Service() {
     
     private fun createNotification(message: String): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Drowsiness Detection")
+            .setContentTitle("drowze Detection")
             .setContentText(message)
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
