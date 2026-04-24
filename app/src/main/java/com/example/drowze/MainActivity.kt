@@ -409,24 +409,21 @@ class MainActivity : AppCompatActivity() {
 
         val timestamp = Utils.formatTimestamp(System.currentTimeMillis())
 
-        // 🔹 Get the latest location before sending SOS
-        Utils.getLocationInfo { locationInfo ->
+        val message = "EMERGENCY ALERT: Driver drowze detected for ${drowsyDuration / 1000} seconds at $timestamp."
 
-            val message = "EMERGENCY ALERT: Driver drowze detected for ${drowsyDuration / 1000} seconds at $timestamp. $locationInfo"
+        // Vibration and Alert Sound
+        vibratePhone()
+        playAlarm()
 
-            // Vibration and Alert Sound
-            vibratePhone()
-            playAlarm()
+        // Update UI
+        updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
+        updateAlertStatus("Alert prepared for emergency contacts", R.color.warning_yellow)
 
-            // Update UI
-            updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
-            updateAlertStatus("Alert prepared for emergency contacts", R.color.warning_yellow)
-
-            Thread {
-                try {
-                    // Skip SMS sending as permission is removed
-                    runOnUiThread {
-                        updateAlertStatus("Alert prepared successfully", R.color.success_green)
+        Thread {
+            try {
+                // Skip SMS sending as permission is removed
+                runOnUiThread {
+                    updateAlertStatus("Alert prepared successfully", R.color.success_green)
                         updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
                     }
                 } catch (e: Exception) {
