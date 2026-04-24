@@ -91,12 +91,8 @@ class MainActivity : AppCompatActivity() {
         // Initialize the FaceLandmarker
         setupFaceLandmarker()
 
-        Utils.initContext(this)
-
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-        } else {
-            Utils.initContext(this)
         }
 
 
@@ -424,18 +420,17 @@ class MainActivity : AppCompatActivity() {
                 // Skip SMS sending as permission is removed
                 runOnUiThread {
                     updateAlertStatus("Alert prepared successfully", R.color.success_green)
-                        updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error preparing alert", e)
-                    runOnUiThread {
-                        updateAlertStatus("Failed to prepare alert", R.color.error_red)
-                    }
-                } finally {
-                    isSendingMessages = false
+                    updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
                 }
-            }.start()
-        }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error preparing alert", e)
+                runOnUiThread {
+                    updateAlertStatus("Failed to prepare alert", R.color.error_red)
+                }
+            } finally {
+                isSendingMessages = false
+            }
+        }.start()
     }
 
 
