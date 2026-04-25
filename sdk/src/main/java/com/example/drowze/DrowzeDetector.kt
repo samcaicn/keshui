@@ -7,6 +7,7 @@ import android.os.Debug
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import com.example.drowze.license.BuildLicense
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -26,6 +27,7 @@ class DrowzeDetector(private val context: Context) {
         fun onDrowsy(duration: Long)
         fun onAlert(message: String)
         fun onError(error: String)
+        fun onTrialWarning(daysRemaining: Int)
     }
 
     private var faceLandmarker: FaceLandmarker? = null
@@ -44,6 +46,17 @@ class DrowzeDetector(private val context: Context) {
         if (isDebuggerAttached()) {
             listener?.onError(decryptString(encryptString("Debugger detected")))
             return
+        }
+
+        if (BuildLicense.IS_TRIAL) {
+            if (BuildLicense.isExpired()) {
+                listener?.onError(decryptString(encryptString("Trial license expired")))
+                return
+            }
+            val remainingDays = BuildLicense.getRemainingDays()
+            if (remainingDays <= 7) {
+                listener?.onTrialWarning(remainingDays)
+            }
         }
 
         try {
@@ -69,6 +82,11 @@ class DrowzeDetector(private val context: Context) {
     fun detect(bitmap: Bitmap) {
         if (!isDetecting) return
         if (isDebuggerAttached()) return
+
+        if (BuildLicense.IS_TRIAL && BuildLicense.isExpired()) {
+            listener?.onError(decryptString(encryptString("Trial license expired")))
+            return
+        }
 
         val landmarker = faceLandmarker ?: return
 
@@ -172,12 +190,16 @@ class DrowzeDetector(private val context: Context) {
         listener = null
     }
 
-    // 反调试检测
+    fun isTrialLicense(): Boolean = BuildLicense.IS_TRIAL
+
+    fun getTrialRemainingDays(): Int = BuildLicense.getRemainingDays()
+
+    fun canRenewTrial(): Boolean = BuildLicense.CAN_RENEW
+
     private fun isDebuggerAttached(): Boolean {
         return Debug.isDebuggerConnected() || Debug.waitingForDebugger()
     }
 
-    // 简单的字符串加密（混淆）
     private fun encryptString(input: String): String {
         val chars = input.toCharArray()
         for (i in chars.indices) {
@@ -186,7 +208,6 @@ class DrowzeDetector(private val context: Context) {
         return String(chars)
     }
 
-    // 字符串解密
     private fun decryptString(input: String): String {
         val chars = input.toCharArray()
         for (i in chars.indices) {
