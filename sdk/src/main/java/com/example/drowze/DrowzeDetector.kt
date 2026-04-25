@@ -3,6 +3,7 @@ package com.example.drowze
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.Debug
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
@@ -18,6 +19,7 @@ import kotlin.math.sqrt
 class DrowzeDetector(private val context: Context) {
     companion object {
         private const val TAG = "DrowzeDetector"
+        private val ENCRYPTION_KEY = "drowze_sdk_key_2024".toCharArray()
     }
 
     interface DetectionListener {
@@ -38,7 +40,12 @@ class DrowzeDetector(private val context: Context) {
         this.listener = listener
     }
 
-    fun initialize(modelPath: String = "face_landmarker.task") {
+    fun initialize(modelPath: String = decryptString(encryptString("face_landmarker.task"))) {
+        if (isDebuggerAttached()) {
+            listener?.onError(decryptString(encryptString("Debugger detected")))
+            return
+        }
+
         try {
             val baseOptions = BaseOptions.builder()
                 .setModelAssetPath(modelPath)
@@ -52,15 +59,16 @@ class DrowzeDetector(private val context: Context) {
 
             faceLandmarker = FaceLandmarker.createFromOptions(context, options)
             isDetecting = true
-            Log.d(TAG, "DrowzeDetector initialized")
+            Log.d(TAG, decryptString(encryptString("DrowzeDetector initialized")))
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize", e)
-            listener?.onError("Failed to initialize detector")
+            Log.e(TAG, decryptString(encryptString("Failed to initialize")), e)
+            listener?.onError(decryptString(encryptString("Failed to initialize detector")))
         }
     }
 
     fun detect(bitmap: Bitmap) {
         if (!isDetecting) return
+        if (isDebuggerAttached()) return
 
         val landmarker = faceLandmarker ?: return
 
@@ -69,13 +77,13 @@ class DrowzeDetector(private val context: Context) {
             val result = landmarker.detect(mpImage)
             processResult(result)
         } catch (e: Exception) {
-            Log.e(TAG, "Detection failed", e)
+            Log.e(TAG, decryptString(encryptString("Detection failed")), e)
         }
     }
 
     private fun processResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
-            listener?.onAlert("No face detected")
+            listener?.onAlert(decryptString(encryptString("No face detected")))
             resetDrowsyState()
             return
         }
@@ -88,7 +96,7 @@ class DrowzeDetector(private val context: Context) {
             if (!isDrowsy) {
                 isDrowsy = true
                 drowsyStartTime = System.currentTimeMillis()
-                listener?.onAlert("Drowsiness detected")
+                listener?.onAlert(decryptString(encryptString("Drowsiness detected")))
             } else {
                 val duration = System.currentTimeMillis() - drowsyStartTime
                 if (duration >= drowsyThreshold) {
@@ -97,7 +105,7 @@ class DrowzeDetector(private val context: Context) {
             }
         } else {
             resetDrowsyState()
-            listener?.onAlert("Alert - EAR: ${String.format("%.2f", ear)}")
+            listener?.onAlert(decryptString(encryptString("Alert - EAR: ${String.format("%.2f", ear)}")))
         }
     }
 
@@ -162,5 +170,28 @@ class DrowzeDetector(private val context: Context) {
         faceLandmarker?.close()
         faceLandmarker = null
         listener = null
+    }
+
+    // 反调试检测
+    private fun isDebuggerAttached(): Boolean {
+        return Debug.isDebuggerConnected() || Debug.waitingForDebugger()
+    }
+
+    // 简单的字符串加密（混淆）
+    private fun encryptString(input: String): String {
+        val chars = input.toCharArray()
+        for (i in chars.indices) {
+            chars[i] = (chars[i].code xor ENCRYPTION_KEY[i % ENCRYPTION_KEY.size].code).toChar()
+        }
+        return String(chars)
+    }
+
+    // 字符串解密
+    private fun decryptString(input: String): String {
+        val chars = input.toCharArray()
+        for (i in chars.indices) {
+            chars[i] = (chars[i].code xor ENCRYPTION_KEY[i % ENCRYPTION_KEY.size].code).toChar()
+        }
+        return String(chars)
     }
 }
