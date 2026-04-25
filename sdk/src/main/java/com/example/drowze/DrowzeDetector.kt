@@ -8,6 +8,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
 import com.example.drowze.license.BuildLicense
+import com.example.drowze.model.ModelDownloader
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
@@ -21,6 +22,9 @@ class DrowzeDetector(private val context: Context) {
     companion object {
         private const val TAG = "DrowzeDetector"
         private val ENCRYPTION_KEY = "drowze_sdk_key_2024".toCharArray()
+
+        private const val DEFAULT_MODEL_VERSION = "1.0.0"
+        private const val MODEL_FILE_NAME = "face_landmarker.task"
     }
 
     interface DetectionListener {
@@ -28,6 +32,10 @@ class DrowzeDetector(private val context: Context) {
         fun onAlert(message: String)
         fun onError(error: String)
         fun onTrialWarning(daysRemaining: Int)
+        fun onModelDownloadStart()
+        fun onModelDownloadProgress(progress: Int)
+        fun onModelDownloadSuccess()
+        fun onModelDownloadError(error: String)
     }
 
     private var faceLandmarker: FaceLandmarker? = null
@@ -38,11 +46,23 @@ class DrowzeDetector(private val context: Context) {
     private var drowsyStartTime: Long = 0
     private val drowsyThreshold = 5000L
 
+    private val modelDownloader = ModelDownloader(context)
+
+    private var serverUrl: String = ""
+    private var currentModelVersion: String = DEFAULT_MODEL_VERSION
+    private var currentChecksum: String = ""
+
     fun setListener(listener: DetectionListener) {
         this.listener = listener
     }
 
-    fun initialize(modelPath: String = decryptString(encryptString("face_landmarker.task"))) {
+    fun setServerConfig(serverUrl: String, modelVersion: String, checksum: String) {
+        this.serverUrl = serverUrl
+        this.currentModelVersion = modelVersion
+        this.currentChecksum = checksum
+    }
+
+    fun initialize(modelPath: String? = null) {
         if (isDebuggerAttached()) {
             listener?.onError(decryptString(encryptString("Debugger detected")))
             return
@@ -59,6 +79,56 @@ class DrowzeDetector(private val context: Context) {
             }
         }
 
+        val localModelPath = modelPath ?: findBestModelPath()
+
+        if (localModelPath != null) {
+            initializeWithModel(localModelPath)
+        } else if (serverUrl.isNotEmpty()) {
+            downloadAndInitialize()
+        } else {
+            val defaultPath = decryptString(encryptString(MODEL_FILE_NAME))
+            initializeWithModel(defaultPath)
+        }
+    }
+
+    private fun findBestModelPath(): String? {
+        val cachedModels = modelDownloader.getCachedModels()
+        if (cachedModels.isNotEmpty()) {
+            val latestVersion = cachedModels.maxByOrNull { it } ?: return null
+            return modelDownloader.getLocalModelPath(latestVersion)
+        }
+
+        val localPath = modelDownloader.getLocalModelPath(DEFAULT_MODEL_VERSION)
+        return localPath
+    }
+
+    private fun downloadAndInitialize() {
+        modelDownloader.setListener(object : ModelDownloader.DownloadListener {
+            override fun onDownloadStart() {
+                listener?.onModelDownloadStart()
+            }
+
+            override fun onProgress(progress: Int) {
+                listener?.onModelDownloadProgress(progress)
+            }
+
+            override fun onSuccess(modelPath: String) {
+                listener?.onModelDownloadSuccess()
+                initializeWithModel(modelPath)
+            }
+
+            override fun onError(error: String) {
+                listener?.onModelDownloadError(error)
+                val defaultPath = decryptString(encryptString(MODEL_FILE_NAME))
+                initializeWithModel(defaultPath)
+            }
+        })
+
+        val modelUrl = "$serverUrl/models/face_landmarker_$currentModelVersion.task"
+        modelDownloader.downloadModel(modelUrl, currentModelVersion, currentChecksum)
+    }
+
+    private fun initializeWithModel(modelPath: String) {
         try {
             val baseOptions = BaseOptions.builder()
                 .setModelAssetPath(modelPath)
@@ -72,7 +142,7 @@ class DrowzeDetector(private val context: Context) {
 
             faceLandmarker = FaceLandmarker.createFromOptions(context, options)
             isDetecting = true
-            Log.d(TAG, decryptString(encryptString("DrowzeDetector initialized")))
+            Log.d(TAG, decryptString(encryptString("DrowzeDetector initialized with model: $modelPath")))
         } catch (e: Exception) {
             Log.e(TAG, decryptString(encryptString("Failed to initialize")), e)
             listener?.onError(decryptString(encryptString("Failed to initialize detector")))
@@ -195,6 +265,12 @@ class DrowzeDetector(private val context: Context) {
     fun getTrialRemainingDays(): Int = BuildLicense.getRemainingDays()
 
     fun canRenewTrial(): Boolean = BuildLicense.CAN_RENEW
+
+    fun getCurrentModelVersion(): String = currentModelVersion
+
+    fun getCachedModelVersions(): List<String> = modelDownloader.getCachedModels()
+
+    fun deleteCachedModel(version: String): Boolean = modelDownloader.deleteModel(version)
 
     private fun isDebuggerAttached(): Boolean {
         return Debug.isDebuggerConnected() || Debug.waitingForDebugger()
