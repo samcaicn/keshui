@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.library'
     id 'kotlin-android'
-    id 'kotlin-parcelize'
 }
 
 android {
@@ -15,7 +14,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -32,17 +31,5 @@ android {
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.10.1'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-
-    // CameraX
-    implementation 'androidx.camera:camera-core:1.2.3'
-    implementation 'androidx.camera:camera-camera2:1.2.3'
-    implementation 'androidx.camera:camera-lifecycle:1.2.3'
-    implementation 'androidx.camera:camera-view:1.2.3'
-
-    // MediaPipe
     implementation 'com.google.mediapipe:tasks-vision:0.10.3'
-
-    // Gson for JSON serialization
-    implementation 'com.google.code.gson:gson:2.10.1'
 }
