@@ -34,7 +34,7 @@ class DrowzeDetector(private val context: Context) {
         fun onTrialWarning(daysRemaining: Int)
         fun onModelDownloadStart()
         fun onModelDownloadProgress(progress: Int)
-        fun onModelDownloadSuccess()
+        fun onModelDownloadSuccess(isPending: Boolean)
         fun onModelDownloadError(error: String)
     }
 
@@ -79,6 +79,17 @@ class DrowzeDetector(private val context: Context) {
             }
         }
 
+        val pendingUpdate = modelDownloader.getPendingUpdate()
+        if (pendingUpdate != null) {
+            Log.d(TAG, "Applying pending update: $pendingUpdate")
+            val pendingPath = modelDownloader.applyPendingUpdate()
+            if (pendingPath != null) {
+                Log.d(TAG, "Applied pending update, using new model")
+                initializeWithModel(pendingPath)
+                return
+            }
+        }
+
         val localModelPath = modelPath ?: findBestModelPath()
 
         if (localModelPath != null) {
@@ -89,6 +100,47 @@ class DrowzeDetector(private val context: Context) {
             val defaultPath = decryptString(encryptString(MODEL_FILE_NAME))
             initializeWithModel(defaultPath)
         }
+    }
+
+    fun checkAndUpdate() {
+        if (serverUrl.isNotEmpty()) {
+            val hasUpdate = modelDownloader.checkForUpdate(serverUrl, currentModelVersion)
+            if (hasUpdate) {
+                downloadModelForRestart()
+            }
+        }
+    }
+
+    private fun downloadModelForRestart() {
+        modelDownloader.setListener(object : ModelDownloader.DownloadListener {
+            override fun onDownloadStart() {
+                listener?.onModelDownloadStart()
+            }
+
+            override fun onProgress(progress: Int) {
+                listener?.onModelDownloadProgress(progress)
+            }
+
+            override fun onSuccess(modelPath: String, isPending: Boolean) {
+                if (isPending) {
+                    listener?.onModelDownloadSuccess(true)
+                } else {
+                    listener?.onModelDownloadSuccess(false)
+                }
+            }
+
+            override fun onError(error: String) {
+                listener?.onModelDownloadError(error)
+            }
+        })
+
+        val modelUrl = "$serverUrl/models/face_landmarker_$currentModelVersion.task"
+        modelDownloader.downloadModel(
+            modelUrl,
+            currentModelVersion,
+            currentChecksum,
+            applyOnRestart = true
+        )
     }
 
     private fun findBestModelPath(): String? {
@@ -112,9 +164,11 @@ class DrowzeDetector(private val context: Context) {
                 listener?.onModelDownloadProgress(progress)
             }
 
-            override fun onSuccess(modelPath: String) {
-                listener?.onModelDownloadSuccess()
-                initializeWithModel(modelPath)
+            override fun onSuccess(modelPath: String, isPending: Boolean) {
+                if (!isPending) {
+                    listener?.onModelDownloadSuccess(false)
+                    initializeWithModel(modelPath)
+                }
             }
 
             override fun onError(error: String) {
@@ -125,7 +179,12 @@ class DrowzeDetector(private val context: Context) {
         })
 
         val modelUrl = "$serverUrl/models/face_landmarker_$currentModelVersion.task"
-        modelDownloader.downloadModel(modelUrl, currentModelVersion, currentChecksum)
+        modelDownloader.downloadModel(
+            modelUrl,
+            currentModelVersion,
+            currentChecksum,
+            applyOnRestart = false
+        )
     }
 
     private fun initializeWithModel(modelPath: String) {
@@ -271,6 +330,8 @@ class DrowzeDetector(private val context: Context) {
     fun getCachedModelVersions(): List<String> = modelDownloader.getCachedModels()
 
     fun deleteCachedModel(version: String): Boolean = modelDownloader.deleteModel(version)
+
+    fun cancelModelDownload() = modelDownloader.cancelDownload()
 
     private fun isDebuggerAttached(): Boolean {
         return Debug.isDebuggerConnected() || Debug.waitingForDebugger()

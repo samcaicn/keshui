@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -15,12 +16,13 @@ class ModelDownloader(private val context: Context) {
         private const val DEFAULT_TIMEOUT = 30000
         private const val BUFFER_SIZE = 8192
         private const val MAX_RETRY_COUNT = 3
+        private const val PENDING_UPDATE_FILE = "pending_update.txt"
     }
 
     interface DownloadListener {
         fun onDownloadStart()
         fun onProgress(progress: Int)
-        fun onSuccess(modelPath: String)
+        fun onSuccess(modelPath: String, isPending: Boolean)
         fun onError(error: String)
     }
 
@@ -37,7 +39,8 @@ class ModelDownloader(private val context: Context) {
         version: String,
         checksum: String? = null,
         forceUpgrade: Boolean = false,
-        minVersion: String? = null
+        minVersion: String? = null,
+        applyOnRestart: Boolean = true
     ) {
         if (isDownloading) {
             listener?.onError("Download already in progress")
@@ -48,7 +51,7 @@ class ModelDownloader(private val context: Context) {
             val localPath = getLocalModelPath(version)
             if (localPath != null && verifyChecksum(File(localPath), checksum)) {
                 Log.d(TAG, "Model file already exists and verified, skip download")
-                listener?.onSuccess(localPath)
+                listener?.onSuccess(localPath, false)
                 return
             }
         }
@@ -61,10 +64,10 @@ class ModelDownloader(private val context: Context) {
         retryCount = 0
         listener?.onDownloadStart()
 
-        downloadWithRetry(modelUrl, version, checksum)
+        downloadWithRetry(modelUrl, version, checksum, applyOnRestart)
     }
 
-    private fun downloadWithRetry(modelUrl: String, version: String, checksum: String?) {
+    private fun downloadWithRetry(modelUrl: String, version: String, checksum: String?, applyOnRestart: Boolean) {
         Thread {
             try {
                 val modelDir = File(context.filesDir, "models")
@@ -116,11 +119,16 @@ class ModelDownloader(private val context: Context) {
                     throw Exception("Checksum verification failed")
                 }
 
-                cleanupOldVersions(modelDir, version)
+                if (applyOnRestart) {
+                    markForUpdate(version)
+                    listener?.onSuccess(modelFile.absolutePath, true)
+                } else {
+                    cleanupOldVersions(modelDir, version)
+                    listener?.onSuccess(modelFile.absolutePath, false)
+                }
 
                 isDownloading = false
                 retryCount = 0
-                listener?.onSuccess(modelFile.absolutePath)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Download failed: ${e.message}")
@@ -129,7 +137,7 @@ class ModelDownloader(private val context: Context) {
                 if (retryCount < MAX_RETRY_COUNT) {
                     retryCount++
                     Log.d(TAG, "Retrying download ($retryCount/$MAX_RETRY_COUNT)")
-                    downloadWithRetry(modelUrl, version, checksum)
+                    downloadWithRetry(modelUrl, version, checksum, applyOnRestart)
                 } else {
                     retryCount = 0
                     listener?.onError(e.message ?: "Download failed after $MAX_RETRY_COUNT retries")
@@ -157,6 +165,48 @@ class ModelDownloader(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Check for update failed", e)
             false
+        }
+    }
+
+    fun getPendingUpdate(): String? {
+        val pendingFile = File(context.filesDir, PENDING_UPDATE_FILE)
+        if (pendingFile.exists()) {
+            try {
+                return pendingFile.readText().trim()
+            } catch (e: IOException) {
+                Log.e(TAG, "Failed to read pending update file", e)
+            }
+        }
+        return null
+    }
+
+    fun applyPendingUpdate(): String? {
+        val pendingVersion = getPendingUpdate()
+        if (pendingVersion != null) {
+            val modelPath = getLocalModelPath(pendingVersion)
+            if (modelPath != null) {
+                cleanupOldVersions(File(context.filesDir, "models"), pendingVersion)
+                clearPendingUpdate()
+                return modelPath
+            }
+        }
+        return null
+    }
+
+    fun clearPendingUpdate() {
+        val pendingFile = File(context.filesDir, PENDING_UPDATE_FILE)
+        if (pendingFile.exists()) {
+            pendingFile.delete()
+        }
+    }
+
+    private fun markForUpdate(version: String) {
+        val pendingFile = File(context.filesDir, PENDING_UPDATE_FILE)
+        try {
+            pendingFile.writeText(version)
+            Log.d(TAG, "Marked version $version for update on next restart")
+        } catch (e: IOException) {
+            Log.e(TAG, "Failed to mark for update", e)
         }
     }
 
