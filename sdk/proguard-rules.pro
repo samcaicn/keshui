@@ -9,11 +9,11 @@
 -optimizations !code/simplification/arithmetic,!field/*,!class/merging/*
 
 # 保留 SDK 公共 API
--keep public class com.example.drowze.DrowzeDetector {
+-keep public class com.example.drowze.sdk.DrowzeDetector {
     public *;
 }
 
--keep public interface com.example.drowze.DrowzeDetector$DetectionListener {
+-keep public interface com.example.drowze.sdk.DrowzeDetector$DetectionListener {
     public *;
 }
 
@@ -58,12 +58,12 @@
 }
 
 # 反调试措施（简单的反调试检测）
--keep class com.example.drowze.DrowzeDetector {
+-keep class com.example.drowze.sdk.DrowzeDetector {
     private static boolean isDebuggerAttached();
 }
 
 # 加密敏感字符串（通过混淆使字符串难以识别）
--keepclassmembers class com.example.drowze.DrowzeDetector {
+-keepclassmembers class com.example.drowze.sdk.DrowzeDetector {
     private static java.lang.String encryptString(java.lang.String);
     private static java.lang.String decryptString(java.lang.String);
 }
