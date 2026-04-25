@@ -133,7 +133,7 @@ class LicenseManager private constructor(private val context: Context) {
     fun getRemainingOfflineDays(): Int {
         val lastVerify = prefs.getLong(KEY_LAST_VERIFY, 0)
         val daysSinceVerify = (System.currentTimeMillis() - lastVerify) / (1000 * 60 * 60 * 24)
-        return maxOf(0, (MAX_OFFLINE_DAYS - daysSinceVerify).toInt())
+        return Math.max(0, (MAX_OFFLINE_DAYS - daysSinceVerify).toInt())
     }
 
     private fun validateWithServer(licenseKey: String, deviceId: String): Boolean {
