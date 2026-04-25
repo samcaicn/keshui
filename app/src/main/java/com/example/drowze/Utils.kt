@@ -1,15 +1,8 @@
 package com.example.drowze
 
-import android.Manifest
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import android.location.Location
-import android.location.LocationManager
-import android.os.Looper
 import android.util.Log
-import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.*
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -46,6 +39,4 @@ object Utils {
         val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
         return sdf.format(java.util.Date(timestamp))
     }
-
-
 }

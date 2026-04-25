@@ -1,7 +1,5 @@
 package com.example.drowze
 
-import android.os.Looper
-
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -9,11 +7,11 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.media.MediaPlayer
+import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
-import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -27,21 +25,16 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
-import java.nio.ByteBuffer
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.pow
 import kotlin.math.sqrt
-
-import com.google.mediapipe.framework.image.BitmapImageBuilder
-import com.google.mediapipe.framework.image.MPImage
-
-import android.os.Build
-
 
 class MainActivity : AppCompatActivity() {
     companion object {
@@ -52,10 +45,9 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.VIBRATE
         )
 
-        // Drowsiness detection constants
-        private const val EAR_THRESHOLD = 0.2f  // Eye Aspect Ratio threshold
-        private const val DROWSY_TIME_THRESHOLD = 5000  // 5 seconds
-        private const val SOS_COOLDOWN_TIME = 30000  // 30 seconds
+        private const val EAR_THRESHOLD = 0.2f
+        private const val DROWSY_TIME_THRESHOLD = 5000
+        private const val SOS_COOLDOWN_TIME = 30000
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -66,10 +58,8 @@ class MainActivity : AppCompatActivity() {
     private var camera: Camera? = null
     private lateinit var cameraExecutor: ExecutorService
 
-    // Face detection
     private var faceLandmarker: FaceLandmarker? = null
 
-    // State tracking
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
     private var lastSOSSentTime: Long = 0
@@ -88,15 +78,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
 
-        // Initialize the FaceLandmarker
         setupFaceLandmarker()
 
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
 
-
-        // Check and request permissions
         if (allPermissionsGranted()) {
             startCamera()
         } else {
@@ -105,7 +92,6 @@ class MainActivity : AppCompatActivity() {
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        // Start detection service
         val serviceIntent = Intent(this, DetectionService::class.java).apply {
             action = DetectionService.ACTION_START_DETECTION
         }
@@ -150,7 +136,6 @@ class MainActivity : AppCompatActivity() {
                     this as LifecycleOwner, cameraSelector, preview
                 )
 
-                // Set up frame capture
                 setupFrameCapture()
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -165,7 +150,7 @@ class MainActivity : AppCompatActivity() {
         val frameCapture = object : Runnable {
             override fun run() {
                 captureCameraFrame()
-                handler.postDelayed(this, 200) // Process at 5 fps to reduce CPU usage
+                handler.postDelayed(this, 200)
             }
         }
 
@@ -175,10 +160,8 @@ class MainActivity : AppCompatActivity() {
     private fun captureCameraFrame() {
         val bitmap = previewView.bitmap ?: return
 
-        // Rotate bitmap if needed for landscape mode
-        val rotatedBitmap = rotateBitmap(bitmap, 0f) // Adjust rotation angle if needed
+        val rotatedBitmap = rotateBitmap(bitmap, 0f)
 
-        // Process the captured frame
         processFrame(rotatedBitmap)
     }
 
@@ -188,19 +171,14 @@ class MainActivity : AppCompatActivity() {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
-
-
     private fun processFrame(bitmap: Bitmap) {
         val faceLandmarker = faceLandmarker ?: return
 
         try {
-            // Convert Bitmap to MPImage
             val mpImage: MPImage = BitmapImageBuilder(bitmap).build()
 
-            // Detect landmarks
             val result = faceLandmarker.detect(mpImage)
 
-            // Process detection results
             processDetectionResult(result)
         } catch (e: Exception) {
             Log.e(TAG, "Error processing frame", e)
@@ -237,8 +215,6 @@ class MainActivity : AppCompatActivity() {
         vibrator?.cancel()
     }
 
-
-
     private fun processDetectionResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
             updateStatus("No face detected")
@@ -248,7 +224,6 @@ class MainActivity : AppCompatActivity() {
 
         val landmarks = result.faceLandmarks()[0]
 
-        // Calculate Eye Aspect Ratio (EAR)
         val leftEyeEAR = calculateEAR(
             landmarks[33], landmarks[159], landmarks[160],
             landmarks[133], landmarks[144], landmarks[145]
@@ -261,13 +236,11 @@ class MainActivity : AppCompatActivity() {
 
         val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
 
-        // Calculate Mouth Aspect Ratio (MAR)
         val mouthMAR = calculateMAR(
             landmarks[13], landmarks[14], landmarks[78],
-            landmarks[308], landmarks[61], landmarks[291] // Left and right corners
+            landmarks[308], landmarks[61], landmarks[291]
         )
 
-        // **Drowsiness Detection (Eyes Closed)**
         if (avgEAR < EAR_THRESHOLD) {
             if (!isDrowsy) {
                 isDrowsy = true
@@ -278,7 +251,6 @@ class MainActivity : AppCompatActivity() {
                 if (drowsyDuration >= 2000) {
                     updateStatus("Drowsy for ${drowsyDuration / 1000} sec")
 
-                    // **Trigger alarm when drowsiness is confirmed**
                     if (mediaPlayer?.isPlaying != true) {
                         playAlarm()
                         vibratePhone()
@@ -294,19 +266,17 @@ class MainActivity : AppCompatActivity() {
             updateStatus("Alert - EAR: ${String.format("%.2f", avgEAR)}")
         }
 
-        // **Yawning Detection (Mouth Open)**
-        if (mouthMAR > 0.5) {  // Adjust threshold for better detection
+        if (mouthMAR > 0.5) {
             if (!isDrowsy) {
                 isDrowsy = true
                 drowsyStartTime = System.currentTimeMillis()
                 updateStatus("Yawning detected")
 
-                // **Trigger alarm immediately when yawning is detected**
                 playAlarm()
                 vibratePhone()
             } else {
                 val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                if (yawnDuration >= 2000) {  // Ignore short yawns
+                if (yawnDuration >= 2000) {
                     updateStatus("Yawning for ${yawnDuration / 1000} sec")
 
                     if (mediaPlayer?.isPlaying != true) {
@@ -322,9 +292,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
-
-
     private fun resetDrowsyState() {
         isDrowsy = false
         stopAlarm()
@@ -332,25 +299,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun calculateMAR(
-        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark, // Upper lip top
-        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark, // Lower lip bottom
-        p3: com.google.mediapipe.tasks.components.containers.NormalizedLandmark, // Upper lip bottom
-        p4: com.google.mediapipe.tasks.components.containers.NormalizedLandmark, // Lower lip top
-        p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark, // Left mouth corner
-        p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark  // Right mouth corner
+        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p3: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p4: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
     ): Float {
-        // Calculate vertical mouth opening
         val vertDistance1 = euclideanDistance(p1, p2)
         val vertDistance2 = euclideanDistance(p3, p4)
 
-        // Calculate horizontal mouth width
         val horzDistance = euclideanDistance(p5, p6)
 
-        // MAR formula
         return (vertDistance1 + vertDistance2) / (2.0f * horzDistance)
     }
-
-
 
     private fun calculateEAR(
         p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
@@ -360,24 +322,20 @@ class MainActivity : AppCompatActivity() {
         p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
         p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
     ): Float {
-        // Calculate vertical distances
         val vertDistance1 = euclideanDistance(p2, p6)
         val vertDistance2 = euclideanDistance(p3, p5)
 
-        // Calculate horizontal distance
         val horzDistance = euclideanDistance(p1, p4)
 
-        // EAR formula
         return (vertDistance1 + vertDistance2) / (2.0f * horzDistance)
     }
 
-
-    private fun euclideanDistance(p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-                                  p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark): Float {
-        // Calculate distance between two points
+    private fun euclideanDistance(
+        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+    ): Float {
         return sqrt(
-            (p1.x() - p2.x()).pow(2) +
-                    (p1.y() - p2.y()).pow(2)
+            (p1.x() - p2.x()).pow(2) + (p1.y() - p2.y()).pow(2)
         )
     }
 
@@ -391,7 +349,6 @@ class MainActivity : AppCompatActivity() {
             updateAlertStatus("SOS cooldown: ${(SOS_COOLDOWN_TIME - timeSinceLastSOS) / 1000}s", R.color.warning_yellow)
         }
     }
-
 
     private fun sendSOSMessages(drowsyDuration: Long) {
         val contacts = Utils.getContacts(this)
@@ -407,17 +364,14 @@ class MainActivity : AppCompatActivity() {
 
         val message = "EMERGENCY ALERT: Driver drowze detected for ${drowsyDuration / 1000} seconds at $timestamp."
 
-        // Vibration and Alert Sound
         vibratePhone()
         playAlarm()
 
-        // Update UI
         updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
         updateAlertStatus("Alert prepared for emergency contacts", R.color.warning_yellow)
 
         Thread {
             try {
-                // Skip SMS sending as permission is removed
                 runOnUiThread {
                     updateAlertStatus("Alert prepared successfully", R.color.success_green)
                     updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
@@ -433,9 +387,6 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-
-
-
     private fun updateStatus(message: String) {
         runOnUiThread {
             statusText.text = message
@@ -448,7 +399,6 @@ class MainActivity : AppCompatActivity() {
             alertStatusText.setTextColor(ContextCompat.getColor(this, colorResId))
         }
     }
-
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
@@ -475,7 +425,6 @@ class MainActivity : AppCompatActivity() {
         cameraExecutor.shutdown()
         faceLandmarker?.close()
 
-        // Stop detection service
         val serviceIntent = Intent(this, DetectionService::class.java).apply {
             action = DetectionService.ACTION_STOP_DETECTION
         }
