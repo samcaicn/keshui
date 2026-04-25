@@ -14,6 +14,7 @@ class ModelDownloader(private val context: Context) {
         private const val TAG = "ModelDownloader"
         private const val DEFAULT_TIMEOUT = 30000
         private const val BUFFER_SIZE = 8192
+        private const val MAX_RETRY_COUNT = 3
     }
 
     interface DownloadListener {
@@ -25,6 +26,7 @@ class ModelDownloader(private val context: Context) {
 
     private var listener: DownloadListener? = null
     private var isDownloading = false
+    private var retryCount = 0
 
     fun setListener(listener: DownloadListener) {
         this.listener = listener
@@ -33,16 +35,36 @@ class ModelDownloader(private val context: Context) {
     fun downloadModel(
         modelUrl: String,
         version: String,
-        checksum: String? = null
+        checksum: String? = null,
+        forceUpgrade: Boolean = false,
+        minVersion: String? = null
     ) {
         if (isDownloading) {
             listener?.onError("Download already in progress")
             return
         }
 
+        if (!forceUpgrade) {
+            val localPath = getLocalModelPath(version)
+            if (localPath != null && verifyChecksum(File(localPath), checksum)) {
+                Log.d(TAG, "Model file already exists and verified, skip download")
+                listener?.onSuccess(localPath)
+                return
+            }
+        }
+
+        if (minVersion != null && isVersionCompatible(version, minVersion)) {
+            Log.d(TAG, "Current version $version is below minimum $minVersion")
+        }
+
         isDownloading = true
+        retryCount = 0
         listener?.onDownloadStart()
 
+        downloadWithRetry(modelUrl, version, checksum)
+    }
+
+    private fun downloadWithRetry(modelUrl: String, version: String, checksum: String?) {
         Thread {
             try {
                 val modelDir = File(context.filesDir, "models")
@@ -53,16 +75,7 @@ class ModelDownloader(private val context: Context) {
                 val modelFile = File(modelDir, "face_landmarker_$version.task")
 
                 if (modelFile.exists()) {
-                    if (checksum != null && verifyChecksum(modelFile, checksum)) {
-                        Log.d(TAG, "Model file already exists and verified")
-                        isDownloading = false
-                        listener?.onSuccess(modelFile.absolutePath)
-                        return@Thread
-                    } else if (checksum == null) {
-                        isDownloading = false
-                        listener?.onSuccess(modelFile.absolutePath)
-                        return@Thread
-                    }
+                    modelFile.delete()
                 }
 
                 val url = URL(modelUrl)
@@ -106,14 +119,71 @@ class ModelDownloader(private val context: Context) {
                 cleanupOldVersions(modelDir, version)
 
                 isDownloading = false
+                retryCount = 0
                 listener?.onSuccess(modelFile.absolutePath)
 
             } catch (e: Exception) {
-                Log.e(TAG, "Download failed", e)
+                Log.e(TAG, "Download failed: ${e.message}")
                 isDownloading = false
-                listener?.onError(e.message ?: "Download failed")
+
+                if (retryCount < MAX_RETRY_COUNT) {
+                    retryCount++
+                    Log.d(TAG, "Retrying download ($retryCount/$MAX_RETRY_COUNT)")
+                    downloadWithRetry(modelUrl, version, checksum)
+                } else {
+                    retryCount = 0
+                    listener?.onError(e.message ?: "Download failed after $MAX_RETRY_COUNT retries")
+                }
             }
         }.start()
+    }
+
+    fun checkForUpdate(serverUrl: String, currentVersion: String): Boolean {
+        return try {
+            val url = URL("$serverUrl/api/v1/model/latest")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+
+            val responseCode = connection.responseCode
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val response = connection.inputStream.bufferedReader().readText()
+                val latestVersion = extractVersionFromResponse(response)
+                latestVersion != null && isNewerVersion(latestVersion, currentVersion)
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Check for update failed", e)
+            false
+        }
+    }
+
+    private fun extractVersionFromResponse(response: String): String? {
+        return try {
+            val regex = """"version"\s*:\s*"([^"]+)"""".toRegex()
+            regex.find(response)?.groupValues?.get(1)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun isNewerVersion(newVersion: String, currentVersion: String): Boolean {
+        val newParts = newVersion.split(".").mapNotNull { it.toIntOrNull() }
+        val currentParts = currentVersion.split(".").mapNotNull { it.toIntOrNull() }
+
+        for (i in 0 until maxOf(newParts.size, currentParts.size)) {
+            val new = newParts.getOrElse(i) { 0 }
+            val current = currentParts.getOrElse(i) { 0 }
+            if (new > current) return true
+            if (new < current) return false
+        }
+        return false
+    }
+
+    private fun isVersionCompatible(version: String, minVersion: String): Boolean {
+        return !isNewerVersion(version, minVersion)
     }
 
     fun getLocalModelPath(version: String): String? {
@@ -146,7 +216,14 @@ class ModelDownloader(private val context: Context) {
             ?: emptyList()
     }
 
-    private fun verifyChecksum(file: File, expectedChecksum: String): Boolean {
+    fun cancelDownload() {
+        isDownloading = false
+        retryCount = 0
+    }
+
+    private fun verifyChecksum(file: File, expectedChecksum: String?): Boolean {
+        if (expectedChecksum == null) return file.exists()
+
         return try {
             val digest = MessageDigest.getInstance("SHA-256")
             file.inputStream().use { input ->
