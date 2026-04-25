@@ -223,7 +223,7 @@ class ModelDownloader(private val context: Context) {
         val newParts = newVersion.split(".").mapNotNull { it.toIntOrNull() }
         val currentParts = currentVersion.split(".").mapNotNull { it.toIntOrNull() }
 
-        for (i in 0 until maxOf(newParts.size, currentParts.size)) {
+        for (i in 0 until Math.max(newParts.size, currentParts.size)) {
             val new = newParts.getOrElse(i) { 0 }
             val current = currentParts.getOrElse(i) { 0 }
             if (new > current) return true
