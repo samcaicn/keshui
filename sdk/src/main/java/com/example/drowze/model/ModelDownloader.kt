@@ -212,9 +212,11 @@ class ModelDownloader(private val context: Context) {
 
     private fun extractVersionFromResponse(response: String): String? {
         return try {
-            val regex = Regex("\"version\"\s*:\s*\"([^\"]+)\"")
+            val pattern = "\"version\"\s*:\s*\"([^\"]+)\""
+            val regex = Regex(pattern)
             regex.find(response)?.groupValues?.get(1)
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract version", e)
             null
         }
     }
