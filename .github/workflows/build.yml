@@ -24,6 +24,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
+    - name: Clean build cache
+      run: ./gradlew clean
+
     - name: Build SDK
       run: ./gradlew :sdk:assemble
 
@@ -50,6 +53,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
+    - name: Clean build cache
+      run: ./gradlew clean
+
     - name: Build App
       run: ./gradlew :app:assembleDebug
 
@@ -75,6 +81,9 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
+
+    - name: Clean build cache
+      run: ./gradlew clean
 
     - name: Run Lint
       run: ./gradlew lint
