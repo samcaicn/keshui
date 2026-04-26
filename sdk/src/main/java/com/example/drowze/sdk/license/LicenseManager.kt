@@ -146,9 +146,9 @@ class LicenseManager private constructor(private val context: Context) {
     }
 
     private fun generateDeviceId(): String {
-        val androidId = android.provider.Settings.Secure.getString(
+        val androidId = Settings.Secure.getString(
             context.contentResolver,
-            android.provider.Settings.Secure.ANDROID_ID
+            Settings.Secure.ANDROID_ID
         ) ?: ""
 
         val deviceInfo = "${Build.MANUFACTURER}_${Build.MODEL}_${Build.SERIAL}_$androidId".trim()
