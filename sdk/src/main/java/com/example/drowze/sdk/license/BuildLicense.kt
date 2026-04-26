@@ -1,5 +1,7 @@
 package com.example.drowze.sdk.license
 
+import java.io.File
+
 object BuildLicense {
     const val LICENSE_KEY = "DROWZE-BUILD-TRIAL"
     const val IS_TRIAL = true
@@ -20,6 +22,15 @@ object BuildLicense {
     }
 
     private fun getBuildTime(): Long {
-        return 1714137600000L
+        return try {
+            val buildTimeFile = File("${System.getProperty("user.dir")}/.buildtime")
+            if (buildTimeFile.exists()) {
+                buildTimeFile.readText().trim().toLong()
+            } else {
+                System.currentTimeMillis()
+            }
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
     }
 }

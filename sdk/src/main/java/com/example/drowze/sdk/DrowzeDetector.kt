@@ -189,6 +189,21 @@ class DrowzeDetector(private val context: Context) {
 
     private fun initializeWithModel(modelPath: String) {
         try {
+            Log.d(TAG, "Initializing with model: $modelPath")
+            
+            // Check if model file exists in assets
+            val assetManager = context.assets
+            try {
+                val assetList = assetManager.list("")
+                Log.d(TAG, "Assets in root: ${assetList?.joinToString(", ")}")
+                
+                // Check if model file exists
+                val modelExists = assetList?.contains(MODEL_FILE_NAME) ?: false
+                Log.d(TAG, "Model file exists: $modelExists")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error listing assets", e)
+            }
+            
             val baseOptions = BaseOptions.builder()
                 .setModelAssetPath(modelPath)
                 .build()
@@ -204,7 +219,7 @@ class DrowzeDetector(private val context: Context) {
             Log.d(TAG, "DrowzeDetector initialized with model: $modelPath")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize", e)
-            listener?.onError("Failed to initialize detector")
+            listener?.onError("Failed to initialize detector: ${e.message}")
         }
     }
 
