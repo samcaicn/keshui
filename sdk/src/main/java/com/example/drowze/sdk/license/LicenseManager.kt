@@ -3,6 +3,7 @@ package com.example.drowze.sdk.license
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import android.provider.Settings
 import android.util.Base64
 import com.google.gson.Gson
 import java.security.MessageDigest
