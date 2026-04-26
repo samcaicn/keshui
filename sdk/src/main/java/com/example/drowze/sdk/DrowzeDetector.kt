@@ -173,7 +173,7 @@ class DrowzeDetector(private val context: Context) {
 
             override fun onError(error: String) {
                 listener?.onModelDownloadError(error)
-                val defaultPath = decryptString(encryptString(MODEL_FILE_NAME))
+                val defaultPath = MODEL_FILE_NAME
                 initializeWithModel(defaultPath)
             }
         })
