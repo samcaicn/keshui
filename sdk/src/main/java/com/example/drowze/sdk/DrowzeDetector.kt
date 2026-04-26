@@ -191,9 +191,18 @@ class DrowzeDetector(private val context: Context) {
         try {
             Log.d(TAG, "Initializing with model: $modelPath")
             
-            val baseOptions = BaseOptions.builder()
-                .setModelAssetPath(modelPath)
-                .build()
+            val baseOptionsBuilder = BaseOptions.builder()
+            
+            // Check if modelPath is an absolute path or a relative asset path
+            if (modelPath.startsWith("/")) {
+                // Use setModelPath for absolute file paths
+                baseOptionsBuilder.setModelPath(modelPath)
+            } else {
+                // Use setModelAssetPath for relative asset paths
+                baseOptionsBuilder.setModelAssetPath(modelPath)
+            }
+            
+            val baseOptions = baseOptionsBuilder.build()
 
             val options = FaceLandmarker.FaceLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)
