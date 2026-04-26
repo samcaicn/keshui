@@ -7,7 +7,7 @@ import android.os.Debug
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
-import com.example.drowze.sdk.license.BuildLicense
+
 import com.example.drowze.sdk.model.ModelDownloader
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
@@ -66,17 +66,6 @@ class DrowzeDetector(private val context: Context) {
         if (isDebuggerAttached()) {
             listener?.onError("Debugger detected")
             return
-        }
-
-        if (BuildLicense.IS_TRIAL) {
-            if (BuildLicense.isExpired()) {
-                listener?.onError("Trial license expired")
-                return
-            }
-            val remainingDays = BuildLicense.getRemainingDays()
-            if (remainingDays <= 7) {
-                listener?.onTrialWarning(remainingDays)
-            }
         }
 
         val pendingUpdate = modelDownloader.getPendingUpdate()
@@ -218,11 +207,6 @@ class DrowzeDetector(private val context: Context) {
         if (!isDetecting) return
         if (isDebuggerAttached()) return
 
-        if (BuildLicense.IS_TRIAL && BuildLicense.isExpired()) {
-            listener?.onError("Trial license expired")
-            return
-        }
-
         val landmarker = faceLandmarker ?: return
 
         try {
@@ -325,11 +309,7 @@ class DrowzeDetector(private val context: Context) {
         listener = null
     }
 
-    fun isTrialLicense(): Boolean = BuildLicense.IS_TRIAL
 
-    fun getTrialRemainingDays(): Int = BuildLicense.getRemainingDays()
-
-    fun canRenewTrial(): Boolean = BuildLicense.CAN_RENEW
 
     fun getCurrentModelVersion(): String = currentModelVersion
 
