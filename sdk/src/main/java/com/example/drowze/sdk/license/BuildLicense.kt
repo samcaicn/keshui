@@ -20,6 +20,6 @@ object BuildLicense {
     }
 
     private fun getBuildTime(): Long {
-        return System.currentTimeMillis()
+        return 1714137600000L
     }
 }
