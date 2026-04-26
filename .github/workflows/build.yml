@@ -9,8 +9,6 @@ on:
 jobs:
   build-sdk:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v5
@@ -38,8 +36,6 @@ jobs:
 
   build-app:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v5
@@ -52,9 +48,6 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
-
-    - name: Clean build cache
-      run: ./gradlew clean
 
     - name: Build App
       run: ./gradlew :app:assembleDebug
@@ -67,8 +60,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
     - uses: actions/checkout@v5
@@ -81,9 +72,6 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
-
-    - name: Clean build cache
-      run: ./gradlew clean
 
     - name: Run Lint
       run: ./gradlew lint
