@@ -191,9 +191,13 @@ class DrowzeDetector(private val context: Context) {
         try {
             Log.d(TAG, "Initializing with model: $modelPath")
             
-            val baseOptions = BaseOptions.builder()
-                .setModelAssetPath(modelPath)
-                .build()
+            val baseOptionsBuilder = BaseOptions.builder()
+            if (modelPath.startsWith("/")) {
+                baseOptionsBuilder.setModelPath(modelPath)
+            } else {
+                baseOptionsBuilder.setModelAssetPath(modelPath)
+            }
+            val baseOptions = baseOptionsBuilder.build()
 
             val options = FaceLandmarker.FaceLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)
