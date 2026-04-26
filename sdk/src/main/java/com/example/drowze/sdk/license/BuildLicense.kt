@@ -23,12 +23,22 @@ object BuildLicense {
 
     private fun getBuildTime(): Long {
         return try {
-            val buildTimeFile = File("${System.getProperty("user.dir")}/.buildtime")
-            if (buildTimeFile.exists()) {
-                buildTimeFile.readText().trim().toLong()
-            } else {
-                System.currentTimeMillis()
+            // 尝试从不同位置读取 .buildtime 文件
+            val possiblePaths = listOf(
+                ".buildtime",
+                "${System.getProperty("user.dir")}/.buildtime",
+                "${System.getProperty("user.dir")}/../.buildtime"
+            )
+            
+            for (path in possiblePaths) {
+                val buildTimeFile = File(path)
+                if (buildTimeFile.exists()) {
+                    return buildTimeFile.readText().trim().toLong()
+                }
             }
+            
+            // 如果都找不到，返回当前时间
+            System.currentTimeMillis()
         } catch (e: Exception) {
             System.currentTimeMillis()
         }
