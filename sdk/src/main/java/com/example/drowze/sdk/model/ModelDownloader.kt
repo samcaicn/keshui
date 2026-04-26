@@ -243,7 +243,7 @@ class ModelDownloader(private val context: Context) {
     }
 
     private fun isVersionCompatible(version: String, minVersion: String): Boolean {
-        return !isNewerVersion(version, minVersion)
+        return !isNewerVersion(minVersion, version)
     }
 
     fun getLocalModelPath(version: String): String? {

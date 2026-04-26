@@ -64,13 +64,13 @@ class DrowzeDetector(private val context: Context) {
 
     fun initialize(modelPath: String? = null) {
         if (isDebuggerAttached()) {
-            listener?.onError(decryptString(encryptString("Debugger detected")))
+            listener?.onError("Debugger detected")
             return
         }
 
         if (BuildLicense.IS_TRIAL) {
             if (BuildLicense.isExpired()) {
-                listener?.onError(decryptString(encryptString("Trial license expired")))
+                listener?.onError("Trial license expired")
                 return
             }
             val remainingDays = BuildLicense.getRemainingDays()
@@ -97,7 +97,7 @@ class DrowzeDetector(private val context: Context) {
         } else if (serverUrl.isNotEmpty()) {
             downloadAndInitialize()
         } else {
-            val defaultPath = decryptString(encryptString(MODEL_FILE_NAME))
+            val defaultPath = MODEL_FILE_NAME
             initializeWithModel(defaultPath)
         }
     }
@@ -201,10 +201,10 @@ class DrowzeDetector(private val context: Context) {
 
             faceLandmarker = FaceLandmarker.createFromOptions(context, options)
             isDetecting = true
-            Log.d(TAG, decryptString(encryptString("DrowzeDetector initialized with model: $modelPath")))
+            Log.d(TAG, "DrowzeDetector initialized with model: $modelPath")
         } catch (e: Exception) {
-            Log.e(TAG, decryptString(encryptString("Failed to initialize")), e)
-            listener?.onError(decryptString(encryptString("Failed to initialize detector")))
+            Log.e(TAG, "Failed to initialize", e)
+            listener?.onError("Failed to initialize detector")
         }
     }
 
@@ -213,7 +213,7 @@ class DrowzeDetector(private val context: Context) {
         if (isDebuggerAttached()) return
 
         if (BuildLicense.IS_TRIAL && BuildLicense.isExpired()) {
-            listener?.onError(decryptString(encryptString("Trial license expired")))
+            listener?.onError("Trial license expired")
             return
         }
 
@@ -224,13 +224,13 @@ class DrowzeDetector(private val context: Context) {
             val result = landmarker.detect(mpImage)
             processResult(result)
         } catch (e: Exception) {
-            Log.e(TAG, decryptString(encryptString("Detection failed")), e)
+            Log.e(TAG, "Detection failed", e)
         }
     }
 
     private fun processResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
-            listener?.onAlert(decryptString(encryptString("No face detected")))
+            listener?.onAlert("No face detected")
             resetDrowsyState()
             return
         }
@@ -243,7 +243,7 @@ class DrowzeDetector(private val context: Context) {
             if (!isDrowsy) {
                 isDrowsy = true
                 drowsyStartTime = System.currentTimeMillis()
-                listener?.onAlert(decryptString(encryptString("Drowsiness detected")))
+                listener?.onAlert("Drowsiness detected")
             } else {
                 val duration = System.currentTimeMillis() - drowsyStartTime
                 if (duration >= drowsyThreshold) {
@@ -252,7 +252,7 @@ class DrowzeDetector(private val context: Context) {
             }
         } else {
             resetDrowsyState()
-            listener?.onAlert(decryptString(encryptString("Alert - EAR: ${String.format("%.2f", ear)}")))
+            listener?.onAlert("Alert - EAR: ${String.format("%.2f", ear)}")
         }
     }
 
