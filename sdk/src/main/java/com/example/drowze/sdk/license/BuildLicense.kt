@@ -20,15 +20,6 @@ object BuildLicense {
     }
 
     private fun getBuildTime(): Long {
-        return try {
-            val buildTimeFile = java.io.File(java.io.File("").absolutePath + "/.buildtime")
-            if (buildTimeFile.exists()) {
-                buildTimeFile.readText().trim().toLong()
-            } else {
-                System.currentTimeMillis()
-            }
-        } catch (e: Exception) {
-            System.currentTimeMillis()
-        }
+        return System.currentTimeMillis()
     }
 }
