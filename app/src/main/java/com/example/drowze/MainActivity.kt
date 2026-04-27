@@ -86,11 +86,6 @@ class MainActivity : AppCompatActivity() {
             setupFaceLandmarker()
             startCamera()
         }
-
-        val serviceIntent = Intent(this, DetectionService::class.java).apply {
-            action = DetectionService.ACTION_START_DETECTION
-        }
-        ContextCompat.startForegroundService(this, serviceIntent)
     }
 
     private fun setupFaceLandmarker() {
