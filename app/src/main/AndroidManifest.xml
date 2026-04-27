@@ -37,15 +37,11 @@
             android:screenOrientation="portrait" />
 
         <activity
-            android:name=".DetectionDemoActivity"
-            android:exported="true"
+            android:name="com.example.drowze.DetectionDemoActivity"
+            android:exported="false"
             android:label="Detection Demo"
-            android:screenOrientation="portrait">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:screenOrientation="portrait"
+            android:parentActivityName=".MainActivity" />
 
         <service
             android:name=".DetectionService"
