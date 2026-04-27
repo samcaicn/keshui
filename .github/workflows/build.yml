@@ -32,7 +32,7 @@ jobs:
       run: ./gradlew clean
 
     - name: Build SDK
-      run: ./gradlew :sdk:assembleDebug --stacktrace --info
+      run: ./gradlew :sdk:assembleDebug --stacktrace --debug
       env:
         GRADLE_OPTS: "-Xmx4g -Dorg.gradle.daemon=false"
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
