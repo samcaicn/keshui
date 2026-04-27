@@ -41,12 +41,14 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(
-            Manifest.permission.CAMERA,
-            Manifest.permission.VIBRATE
+            Manifest.permission.CAMERA
         )
 
-        private const val EAR_THRESHOLD = 0.2f
+        private const val EAR_THRESHOLD = 0.25f
         private const val DROWSY_TIME_THRESHOLD = 5000
+        private const val EYES_CLOSED_TIME_THRESHOLD = 3000
+        private const val MAR_THRESHOLD = 0.65f
+        private const val YAWN_TIME_THRESHOLD = 1500
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -180,7 +182,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var mediaPlayer: MediaPlayer? = null
-    private var vibrator: Vibrator? = null
 
     private fun playAlarm() {
         if (mediaPlayer == null) {
@@ -194,19 +195,6 @@ class MainActivity : AppCompatActivity() {
         mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
-    }
-
-    private fun vibratePhone() {
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
-        } else {
-            vibrator?.vibrate(1000)
-        }
-    }
-
-    private fun stopVibration() {
-        vibrator?.cancel()
     }
 
     private fun processDetectionResult(result: FaceLandmarkerResult) {
@@ -242,12 +230,11 @@ class MainActivity : AppCompatActivity() {
                 updateStatus("Eyes closed")
             } else {
                 val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
-                if (drowsyDuration >= 2000) {
+                if (drowsyDuration >= EYES_CLOSED_TIME_THRESHOLD) {
                     updateStatus("Drowsy for ${drowsyDuration / 1000} sec")
 
                     if (mediaPlayer?.isPlaying != true) {
                         playAlarm()
-                        vibratePhone()
                     }
                 }
             }
@@ -256,22 +243,18 @@ class MainActivity : AppCompatActivity() {
             updateStatus("Alert - EAR: ${String.format("%.2f", avgEAR)}")
         }
 
-        if (mouthMAR > 0.5) {
+        if (mouthMAR > MAR_THRESHOLD) {
             if (!isDrowsy) {
                 isDrowsy = true
                 drowsyStartTime = System.currentTimeMillis()
                 updateStatus("Yawning detected")
-
-                playAlarm()
-                vibratePhone()
             } else {
                 val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                if (yawnDuration >= 2000) {
+                if (yawnDuration >= YAWN_TIME_THRESHOLD) {
                     updateStatus("Yawning for ${yawnDuration / 1000} sec")
 
                     if (mediaPlayer?.isPlaying != true) {
                         playAlarm()
-                        vibratePhone()
                     }
                 }
             }
@@ -281,7 +264,6 @@ class MainActivity : AppCompatActivity() {
     private fun resetDrowsyState() {
         isDrowsy = false
         stopAlarm()
-        stopVibration()
     }
 
     private fun calculateMAR(
