@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupFaceLandmarker() {
         try {
+            Log.d(TAG, "Setting up FaceLandmarker")
             val baseOptions = BaseOptions.builder()
                 .setModelAssetPath("face_landmarker.task")
                 .build()
@@ -91,38 +92,46 @@ class MainActivity : AppCompatActivity() {
 
             faceLandmarker = FaceLandmarker.createFromOptions(this, options)
             Log.d(TAG, "FaceLandmarker initialized successfully")
+            updateStatus("FaceLandmarker initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up FaceLandmarker", e)
             Toast.makeText(this, "Failed to setup face detection", Toast.LENGTH_LONG).show()
+            updateStatus("Failed to setup face detection: ${e.message}")
         }
     }
 
     private fun startCamera() {
+        Log.d(TAG, "Starting camera")
         cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
-
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
-
-            val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
             try {
+                val cameraProvider = cameraProviderFuture.get()
+                Log.d(TAG, "Camera provider obtained")
+
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+
+                val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+
                 cameraProvider.unbindAll()
                 camera = cameraProvider.bindToLifecycle(
                     this as LifecycleOwner, cameraSelector, preview
                 )
+                Log.d(TAG, "Camera bound to lifecycle")
 
                 setupFrameCapture()
+                updateStatus("Camera started")
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
+                updateStatus("Failed to start camera: ${e.message}")
             }
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun setupFrameCapture() {
+        Log.d(TAG, "Setting up frame capture")
         previewView.implementationMode = PreviewView.ImplementationMode.COMPATIBLE
 
         val handler = android.os.Handler()
@@ -134,10 +143,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         handler.post(frameCapture)
+        Log.d(TAG, "Frame capture setup completed")
     }
 
     private fun captureCameraFrame() {
         val bitmap = previewView.bitmap ?: return
+        Log.d(TAG, "Captured camera frame")
 
         val rotatedBitmap = rotateBitmap(bitmap, 0f)
 
@@ -152,15 +163,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun processFrame(bitmap: Bitmap) {
         val faceLandmarker = faceLandmarker ?: return
+        Log.d(TAG, "Processing frame")
 
         try {
             val mpImage: MPImage = BitmapImageBuilder(bitmap).build()
+            Log.d(TAG, "Created MPImage")
 
             val result = faceLandmarker.detect(mpImage)
+            Log.d(TAG, "Detected faces: ${result.faceLandmarks().size}")
 
             processDetectionResult(result)
         } catch (e: Exception) {
             Log.e(TAG, "Error processing frame", e)
+            updateStatus("Error processing frame: ${e.message}")
         }
     }
 
@@ -328,6 +343,7 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
+                setupFaceLandmarker()
                 startCamera()
             } else {
                 Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show()
@@ -340,10 +356,5 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
         faceLandmarker?.close()
-
-        val serviceIntent = Intent(this, DetectionService::class.java).apply {
-            action = DetectionService.ACTION_STOP_DETECTION
-        }
-        startService(serviceIntent)
     }
 }
