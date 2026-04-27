@@ -94,11 +94,11 @@ class MainActivity : AppCompatActivity() {
 
             faceLandmarker = FaceLandmarker.createFromOptions(this, options)
             Log.d(TAG, "FaceLandmarker initialized successfully")
-            updateStatus("FaceLandmarker initialized")
+            updateStatus("FaceLandmarker initialized", 0f, 0f)
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up FaceLandmarker", e)
             Toast.makeText(this, "Failed to setup face detection", Toast.LENGTH_LONG).show()
-            updateStatus("Failed to setup face detection: ${e.message}")
+            updateStatus("Failed to setup face detection: ${e.message}", 0f, 0f)
         }
     }
 
@@ -124,10 +124,10 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "Camera bound to lifecycle")
 
                 setupFrameCapture()
-                updateStatus("Camera started")
+                updateStatus("Camera started", 0f, 0f)
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
-                updateStatus("Failed to start camera: ${e.message}")
+                updateStatus("Failed to start camera: ${e.message}", 0f, 0f)
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -177,7 +177,7 @@ class MainActivity : AppCompatActivity() {
             processDetectionResult(result)
         } catch (e: Exception) {
             Log.e(TAG, "Error processing frame", e)
-            updateStatus("Error processing frame: ${e.message}")
+            updateStatus("Error processing frame: ${e.message}", 0f, 0f)
         }
     }
 
@@ -199,7 +199,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun processDetectionResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
-            updateStatus("No face detected")
+            updateStatus("No face detected", 0f, 0f)
             resetDrowsyState()
             return
         }
@@ -223,41 +223,52 @@ class MainActivity : AppCompatActivity() {
             landmarks[308], landmarks[61], landmarks[291]
         )
 
+        var statusMessage = ""
+        var shouldAlarm = false
+
         if (avgEAR < EAR_THRESHOLD) {
             if (!isDrowsy) {
                 isDrowsy = true
                 drowsyStartTime = System.currentTimeMillis()
-                updateStatus("Eyes closed")
+                statusMessage = "Eyes closed"
             } else {
                 val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
                 if (drowsyDuration >= EYES_CLOSED_TIME_THRESHOLD) {
-                    updateStatus("Drowsy for ${drowsyDuration / 1000} sec")
-
-                    if (mediaPlayer?.isPlaying != true) {
-                        playAlarm()
-                    }
+                    statusMessage = "Drowsy for ${drowsyDuration / 1000} sec"
+                    shouldAlarm = true
+                } else {
+                    statusMessage = "Eyes closed"
+                }
+            }
+        } else if (mouthMAR > MAR_THRESHOLD) {
+            if (!isDrowsy) {
+                isDrowsy = true
+                drowsyStartTime = System.currentTimeMillis()
+                statusMessage = "Yawning detected"
+            } else {
+                val yawnDuration = System.currentTimeMillis() - drowsyStartTime
+                if (yawnDuration >= YAWN_TIME_THRESHOLD) {
+                    statusMessage = "Yawning for ${yawnDuration / 1000} sec"
+                    shouldAlarm = true
+                } else {
+                    statusMessage = "Yawning detected"
                 }
             }
         } else {
             resetDrowsyState()
-            updateStatus("Alert - EAR: ${String.format("%.2f", avgEAR)}")
+            statusMessage = "Alert"
         }
 
-        if (mouthMAR > MAR_THRESHOLD) {
-            if (!isDrowsy) {
-                isDrowsy = true
-                drowsyStartTime = System.currentTimeMillis()
-                updateStatus("Yawning detected")
-            } else {
-                val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                if (yawnDuration >= YAWN_TIME_THRESHOLD) {
-                    updateStatus("Yawning for ${yawnDuration / 1000} sec")
+        updateStatus(statusMessage, avgEAR, mouthMAR)
 
-                    if (mediaPlayer?.isPlaying != true) {
-                        playAlarm()
-                    }
-                }
-            }
+        if (shouldAlarm && mediaPlayer?.isPlaying != true) {
+            playAlarm()
+        }
+    }
+
+    private fun updateStatus(message: String, ear: Float, mar: Float) {
+        runOnUiThread {
+            statusText.text = "$message\nEAR: ${String.format("%.2f", ear)}\nMAR: ${String.format("%.2f", mar)}"
         }
     }
 
