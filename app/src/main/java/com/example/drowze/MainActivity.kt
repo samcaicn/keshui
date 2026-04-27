@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CAMERA
         )
 
-        private const val EAR_THRESHOLD = 0.25f
+        private const val EAR_THRESHOLD = 0.35f
         private const val DROWSY_TIME_THRESHOLD = 5000
         private const val EYES_CLOSED_TIME_THRESHOLD = 3000
         private const val MAR_THRESHOLD = 0.65f
@@ -152,7 +152,7 @@ class MainActivity : AppCompatActivity() {
         val bitmap = previewView.bitmap ?: return
         Log.d(TAG, "Captured camera frame")
 
-        val rotatedBitmap = rotateBitmap(bitmap, 0f)
+        val rotatedBitmap = rotateBitmap(bitmap, 90f)
 
         processFrame(rotatedBitmap)
     }
