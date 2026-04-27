@@ -219,8 +219,7 @@ class MainActivity : AppCompatActivity() {
         val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
 
         val mouthMAR = calculateMAR(
-            landmarks[13], landmarks[14], landmarks[78],
-            landmarks[308], landmarks[61], landmarks[291]
+            landmarks[10], landmarks[18], landmarks[61], landmarks[291]
         )
 
         var statusMessage = ""
@@ -278,19 +277,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun calculateMAR(
-        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-        p3: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-        p4: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-        p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
-        p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+        upperLip: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        lowerLip: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        leftCorner: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        rightCorner: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
     ): Float {
-        val vertDistance1 = euclideanDistance(p1, p2)
-        val vertDistance2 = euclideanDistance(p3, p4)
-
-        val horzDistance = euclideanDistance(p5, p6)
-
-        return (vertDistance1 + vertDistance2) / (2.0f * horzDistance)
+        val vertDistance = euclideanDistance(upperLip, lowerLip)
+        val horzDistance = euclideanDistance(leftCorner, rightCorner)
+        
+        if (horzDistance == 0f) return 0f
+        
+        return vertDistance / horzDistance
     }
 
     private fun calculateEAR(
@@ -316,12 +313,6 @@ class MainActivity : AppCompatActivity() {
         return sqrt(
             (p1.x() - p2.x()).pow(2) + (p1.y() - p2.y()).pow(2)
         )
-    }
-
-    private fun updateStatus(message: String) {
-        runOnUiThread {
-            statusText.text = message
-        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
