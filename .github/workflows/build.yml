@@ -32,7 +32,7 @@ jobs:
       run: ./gradlew clean
 
     - name: Build SDK
-      run: ./gradlew :sdk:assembleRelease --stacktrace --info
+      run: ./gradlew :sdk:assembleDebug --stacktrace --info
       env:
         GRADLE_OPTS: "-Xmx4g -Dorg.gradle.daemon=false"
         ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
@@ -41,7 +41,7 @@ jobs:
       uses: actions/upload-artifact@v5
       with:
         name: drowze-sdk
-        path: sdk/build/outputs/aar/sdk-release.aar
+        path: sdk/build/outputs/aar/sdk-debug.aar
 
   build-app:
     runs-on: ubuntu-latest
