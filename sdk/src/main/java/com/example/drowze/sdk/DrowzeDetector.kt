@@ -31,7 +31,6 @@ class DrowzeDetector(private val context: Context) {
         fun onDrowsy(duration: Long)
         fun onAlert(message: String)
         fun onError(error: String)
-        fun onTrialWarning(daysRemaining: Int)
         fun onModelDownloadStart()
         fun onModelDownloadProgress(progress: Int)
         fun onModelDownloadSuccess(isPending: Boolean)
