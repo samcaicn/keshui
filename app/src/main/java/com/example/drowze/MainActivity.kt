@@ -47,14 +47,11 @@ class MainActivity : AppCompatActivity() {
 
         private const val EAR_THRESHOLD = 0.2f
         private const val DROWSY_TIME_THRESHOLD = 5000
-        private const val SOS_COOLDOWN_TIME = 30000
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private lateinit var previewView: PreviewView
     private lateinit var statusText: TextView
-    private lateinit var alertStatusText: TextView
-    private lateinit var manageContactsButton: Button
     private var camera: Camera? = null
     private lateinit var cameraExecutor: ExecutorService
 
@@ -62,8 +59,6 @@ class MainActivity : AppCompatActivity() {
 
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
-    private var lastSOSSentTime: Long = 0
-    private var isSendingMessages = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,12 +66,6 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.preview_view)
         statusText = findViewById(R.id.status_text)
-        alertStatusText = findViewById(R.id.alert_status_text)
-        manageContactsButton = findViewById(R.id.manage_contacts_button)
-
-        manageContactsButton.setOnClickListener {
-            startActivity(Intent(this, ContactsActivity::class.java))
-        }
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
@@ -245,10 +234,6 @@ class MainActivity : AppCompatActivity() {
                         playAlarm()
                         vibratePhone()
                     }
-
-                    if (drowsyDuration >= DROWSY_TIME_THRESHOLD) {
-                        handleDrowsyState(drowsyDuration)
-                    }
                 }
             }
         } else {
@@ -272,10 +257,6 @@ class MainActivity : AppCompatActivity() {
                     if (mediaPlayer?.isPlaying != true) {
                         playAlarm()
                         vibratePhone()
-                    }
-
-                    if (yawnDuration >= DROWSY_TIME_THRESHOLD) {
-                        handleDrowsyState(yawnDuration)
                     }
                 }
             }
@@ -329,64 +310,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun handleDrowsyState(drowsyDuration: Long) {
-        val timeSinceLastSOS = System.currentTimeMillis() - lastSOSSentTime
-
-        if (!isSendingMessages && timeSinceLastSOS > SOS_COOLDOWN_TIME) {
-            sendSOSMessages(drowsyDuration)
-            updateAlertStatus("Sending SOS...", R.color.warning_yellow)
-        } else if (timeSinceLastSOS <= SOS_COOLDOWN_TIME) {
-            updateAlertStatus("SOS cooldown: ${(SOS_COOLDOWN_TIME - timeSinceLastSOS) / 1000}s", R.color.warning_yellow)
-        }
-    }
-
-    private fun sendSOSMessages(drowsyDuration: Long) {
-        val contacts = Utils.getContacts(this)
-        if (contacts.isEmpty()) {
-            updateAlertStatus("No emergency contacts found", R.color.error_red)
-            return
-        }
-
-        isSendingMessages = true
-        lastSOSSentTime = System.currentTimeMillis()
-
-        val timestamp = Utils.formatTimestamp(System.currentTimeMillis())
-
-        val message = "EMERGENCY ALERT: Driver drowze detected for ${drowsyDuration / 1000} seconds at $timestamp."
-
-        vibratePhone()
-        playAlarm()
-
-        updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
-        updateAlertStatus("Alert prepared for emergency contacts", R.color.warning_yellow)
-
-        Thread {
-            try {
-                runOnUiThread {
-                    updateAlertStatus("Alert prepared successfully", R.color.success_green)
-                    updateStatus("DROWZE ALERT! WAKE UP!\nAlert Ready")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error preparing alert", e)
-                runOnUiThread {
-                    updateAlertStatus("Failed to prepare alert", R.color.error_red)
-                }
-            } finally {
-                isSendingMessages = false
-            }
-        }.start()
-    }
-
     private fun updateStatus(message: String) {
         runOnUiThread {
             statusText.text = message
-        }
-    }
-
-    private fun updateAlertStatus(message: String, colorResId: Int) {
-        runOnUiThread {
-            alertStatusText.text = message
-            alertStatusText.setTextColor(ContextCompat.getColor(this, colorResId))
         }
     }
 
