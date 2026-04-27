@@ -56,6 +56,8 @@ configurations {
             force 'androidx.core:core:1.12.0'
             force 'androidx.core:core-ktx:1.12.0'
             force 'com.google.mediapipe:tasks-vision:0.10.0'
+            force 'com.google.mediapipe:tasks-core:0.10.0'
+            force 'com.google.mediapipe:tasks-vision-core:0.10.0'
         }
     }
 }
