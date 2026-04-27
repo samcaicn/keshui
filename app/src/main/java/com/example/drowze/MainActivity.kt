@@ -24,10 +24,17 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.example.drowze.sdk.DrowzeDetector
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class MainActivity : AppCompatActivity() {
     companion object {
@@ -38,6 +45,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.VIBRATE
         )
 
+        private const val EAR_THRESHOLD = 0.2f
         private const val DROWSY_TIME_THRESHOLD = 5000
         private const val SOS_COOLDOWN_TIME = 30000
     }
@@ -50,15 +58,12 @@ class MainActivity : AppCompatActivity() {
     private var camera: Camera? = null
     private lateinit var cameraExecutor: ExecutorService
 
-    private lateinit var drowzeDetector: DrowzeDetector
+    private var faceLandmarker: FaceLandmarker? = null
 
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
     private var lastSOSSentTime: Long = 0
     private var isSendingMessages = false
-
-    private var mediaPlayer: MediaPlayer? = null
-    private var vibrator: Vibrator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,22 +78,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
 
-        // Initialize DrowzeDetector from SDK
-        drowzeDetector = DrowzeDetector(this)
-        drowzeDetector.setListener(object : DrowzeDetector.DetectionListener {
-            override fun onDrowsy(duration: Long) {
-                handleDrowsyState(duration)
-            }
-
-            override fun onAlert(message: String) {
-                updateStatus(message)
-            }
-
-            override fun onError(error: String) {
-                Log.e(TAG, "Detector error: $error")
-                Toast.makeText(this@MainActivity, error, Toast.LENGTH_LONG).show()
-            }
-        })
+        setupFaceLandmarker()
 
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
@@ -106,6 +96,26 @@ class MainActivity : AppCompatActivity() {
             action = DetectionService.ACTION_START_DETECTION
         }
         ContextCompat.startForegroundService(this, serviceIntent)
+    }
+
+    private fun setupFaceLandmarker() {
+        try {
+            val baseOptions = BaseOptions.builder()
+                .setModelAssetPath("face_landmarker.task")
+                .build()
+
+            val options = FaceLandmarker.FaceLandmarkerOptions.builder()
+                .setBaseOptions(baseOptions)
+                .setRunningMode(RunningMode.IMAGE)
+                .setNumFaces(1)
+                .build()
+
+            faceLandmarker = FaceLandmarker.createFromOptions(this, options)
+            Log.d(TAG, "FaceLandmarker initialized successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up FaceLandmarker", e)
+            Toast.makeText(this, "Failed to setup face detection", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun startCamera() {
@@ -126,8 +136,6 @@ class MainActivity : AppCompatActivity() {
                     this as LifecycleOwner, cameraSelector, preview
                 )
 
-                // Initialize detector after camera is started
-                drowzeDetector.initialize()
                 setupFrameCapture()
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
@@ -154,8 +162,7 @@ class MainActivity : AppCompatActivity() {
 
         val rotatedBitmap = rotateBitmap(bitmap, 0f)
 
-        // Use DrowzeDetector from SDK to process frame
-        drowzeDetector.detect(rotatedBitmap)
+        processFrame(rotatedBitmap)
     }
 
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
@@ -163,6 +170,23 @@ class MainActivity : AppCompatActivity() {
         matrix.postRotate(degrees)
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
+
+    private fun processFrame(bitmap: Bitmap) {
+        val faceLandmarker = faceLandmarker ?: return
+
+        try {
+            val mpImage: MPImage = BitmapImageBuilder(bitmap).build()
+
+            val result = faceLandmarker.detect(mpImage)
+
+            processDetectionResult(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing frame", e)
+        }
+    }
+
+    private var mediaPlayer: MediaPlayer? = null
+    private var vibrator: Vibrator? = null
 
     private fun playAlarm() {
         if (mediaPlayer == null) {
@@ -179,11 +203,140 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun vibratePhone() {
-        drowzeDetector.vibrate()
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 500, 500), 0))
+        } else {
+            vibrator?.vibrate(1000)
+        }
     }
 
     private fun stopVibration() {
-        drowzeDetector.stopVibration()
+        vibrator?.cancel()
+    }
+
+    private fun processDetectionResult(result: FaceLandmarkerResult) {
+        if (result.faceLandmarks().isEmpty()) {
+            updateStatus("No face detected")
+            resetDrowsyState()
+            return
+        }
+
+        val landmarks = result.faceLandmarks()[0]
+
+        val leftEyeEAR = calculateEAR(
+            landmarks[33], landmarks[159], landmarks[160],
+            landmarks[133], landmarks[144], landmarks[145]
+        )
+
+        val rightEyeEAR = calculateEAR(
+            landmarks[362], landmarks[386], landmarks[387],
+            landmarks[263], landmarks[373], landmarks[374]
+        )
+
+        val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
+
+        val mouthMAR = calculateMAR(
+            landmarks[13], landmarks[14], landmarks[78],
+            landmarks[308], landmarks[61], landmarks[291]
+        )
+
+        if (avgEAR < EAR_THRESHOLD) {
+            if (!isDrowsy) {
+                isDrowsy = true
+                drowsyStartTime = System.currentTimeMillis()
+                updateStatus("Eyes closed")
+            } else {
+                val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
+                if (drowsyDuration >= 2000) {
+                    updateStatus("Drowsy for ${drowsyDuration / 1000} sec")
+
+                    if (mediaPlayer?.isPlaying != true) {
+                        playAlarm()
+                        vibratePhone()
+                    }
+
+                    if (drowsyDuration >= DROWSY_TIME_THRESHOLD) {
+                        handleDrowsyState(drowsyDuration)
+                    }
+                }
+            }
+        } else {
+            resetDrowsyState()
+            updateStatus("Alert - EAR: ${String.format("%.2f", avgEAR)}")
+        }
+
+        if (mouthMAR > 0.5) {
+            if (!isDrowsy) {
+                isDrowsy = true
+                drowsyStartTime = System.currentTimeMillis()
+                updateStatus("Yawning detected")
+
+                playAlarm()
+                vibratePhone()
+            } else {
+                val yawnDuration = System.currentTimeMillis() - drowsyStartTime
+                if (yawnDuration >= 2000) {
+                    updateStatus("Yawning for ${yawnDuration / 1000} sec")
+
+                    if (mediaPlayer?.isPlaying != true) {
+                        playAlarm()
+                        vibratePhone()
+                    }
+
+                    if (yawnDuration >= DROWSY_TIME_THRESHOLD) {
+                        handleDrowsyState(yawnDuration)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resetDrowsyState() {
+        isDrowsy = false
+        stopAlarm()
+        stopVibration()
+    }
+
+    private fun calculateMAR(
+        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p3: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p4: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+    ): Float {
+        val vertDistance1 = euclideanDistance(p1, p2)
+        val vertDistance2 = euclideanDistance(p3, p4)
+
+        val horzDistance = euclideanDistance(p5, p6)
+
+        return (vertDistance1 + vertDistance2) / (2.0f * horzDistance)
+    }
+
+    private fun calculateEAR(
+        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p3: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p4: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p5: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p6: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+    ): Float {
+        val vertDistance1 = euclideanDistance(p2, p6)
+        val vertDistance2 = euclideanDistance(p3, p5)
+
+        val horzDistance = euclideanDistance(p1, p4)
+
+        return (vertDistance1 + vertDistance2) / (2.0f * horzDistance)
+    }
+
+    private fun euclideanDistance(
+        p1: com.google.mediapipe.tasks.components.containers.NormalizedLandmark,
+        p2: com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+    ): Float {
+        return sqrt(
+            (p1.x() - p2.x()).pow(2) + (p1.y() - p2.y()).pow(2)
+        )
     }
 
     private fun handleDrowsyState(drowsyDuration: Long) {
@@ -270,7 +423,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        drowzeDetector.release()
+        faceLandmarker?.close()
 
         val serviceIntent = Intent(this, DetectionService::class.java).apply {
             action = DetectionService.ACTION_STOP_DETECTION
