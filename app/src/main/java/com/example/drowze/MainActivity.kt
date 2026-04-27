@@ -78,19 +78,14 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, ContactsActivity::class.java))
         }
 
-        setupFaceLandmarker()
+        cameraExecutor = Executors.newSingleThreadExecutor()
 
         if (!allPermissionsGranted()) {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-        }
-
-        if (allPermissionsGranted()) {
-            startCamera()
         } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
+            setupFaceLandmarker()
+            startCamera()
         }
-
-        cameraExecutor = Executors.newSingleThreadExecutor()
 
         val serviceIntent = Intent(this, DetectionService::class.java).apply {
             action = DetectionService.ACTION_START_DETECTION
