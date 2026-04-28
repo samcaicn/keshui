@@ -45,15 +45,15 @@ class MainActivity : AppCompatActivity() {
         )
 
         private const val EAR_THRESHOLD = 0.21f
-        private const val DROWSY_TIME_THRESHOLD = 5000
-        private const val EYES_CLOSED_TIME_THRESHOLD = 3000
+        private const val DROWSY_TIME_THRESHOLD = 5000L
+        private const val EYES_CLOSED_TIME_THRESHOLD = 3000L
         private const val MAR_THRESHOLD = 0.65f
-        private const val YAWN_TIME_THRESHOLD = 1500
+        private const val YAWN_TIME_THRESHOLD = 1500L
         private const val CONSECUTIVE_FRAMES_THRESHOLD = 5
         private const val EAR_HISTORY_SIZE = 5
         private const val MIN_VALID_EAR = 0.05f
         private const val MAX_VALID_EAR = 1.0f
-        private const val ALARM_RELEASE_DELAY = 3000
+        private const val ALARM_RELEASE_DELAY = 3000L
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
