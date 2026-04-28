@@ -48,6 +48,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         private const val EAR_HISTORY_SIZE = 5
         private const val MIN_VALID_EAR = 0.05f
         private const val MAX_VALID_EAR = 1.0f
+        private const val ALARM_RELEASE_DELAY = 3000L
     }
 
     private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
@@ -65,6 +66,8 @@ class DetectionDemoActivity : AppCompatActivity() {
     private var drowsyStartTime: Long = 0
     private var consecutiveEyesClosedFrames = 0
     private val earHistory = mutableListOf<Float>()
+    private var eyeOpenStartTime: Long = 0
+    private var isAlarmActive = false
 
     private val eyePaint = Paint().apply {
         color = Color.GREEN
@@ -264,6 +267,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         detectionInfoText.text = "EAR: ${String.format("%.3f", filteredEAR)}\nMAR: ${String.format("%.3f", mouthMAR)}"
 
         if (filteredEAR < EAR_THRESHOLD) {
+            eyeOpenStartTime = 0
             consecutiveEyesClosedFrames++
             if (consecutiveEyesClosedFrames >= CONSECUTIVE_FRAMES_THRESHOLD) {
                 if (!isDrowsy) {
@@ -274,6 +278,7 @@ class DetectionDemoActivity : AppCompatActivity() {
                     val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
                     if (drowsyDuration >= 2000) {
                         updateStatus("DROWSY ${drowsyDuration / 1000}s", Color.RED)
+                        isAlarmActive = true
                     } else {
                         updateStatus("Eye Closed", Color.YELLOW)
                     }
@@ -284,6 +289,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         } else {
             consecutiveEyesClosedFrames = 0
             if (mouthMAR > 0.5) {
+                eyeOpenStartTime = 0
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
@@ -291,16 +297,32 @@ class DetectionDemoActivity : AppCompatActivity() {
                 } else {
                     val yawnDuration = System.currentTimeMillis() - drowsyStartTime
                     updateStatus("Yawning ${yawnDuration / 1000}s", Color.RED)
+                    isAlarmActive = true
                 }
             } else {
-                resetDrowsyState()
-                updateStatus("Eye Open", Color.GREEN)
+                if (isAlarmActive) {
+                    if (eyeOpenStartTime == 0) {
+                        eyeOpenStartTime = System.currentTimeMillis()
+                    }
+                    val eyeOpenDuration = System.currentTimeMillis() - eyeOpenStartTime
+                    if (eyeOpenDuration >= ALARM_RELEASE_DELAY) {
+                        resetDrowsyState()
+                        updateStatus("Eye Open", Color.GREEN)
+                    } else {
+                        updateStatus("Releasing... ${(ALARM_RELEASE_DELAY - eyeOpenDuration) / 1000}s", Color.YELLOW)
+                    }
+                } else {
+                    resetDrowsyState()
+                    updateStatus("Eye Open", Color.GREEN)
+                }
             }
         }
     }
 
     private fun resetDrowsyState() {
         isDrowsy = false
+        isAlarmActive = false
+        eyeOpenStartTime = 0
         earHistory.clear()
         consecutiveEyesClosedFrames = 0
     }

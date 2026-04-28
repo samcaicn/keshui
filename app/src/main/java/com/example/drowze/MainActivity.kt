@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
         private const val EAR_HISTORY_SIZE = 5
         private const val MIN_VALID_EAR = 0.05f
         private const val MAX_VALID_EAR = 1.0f
+        private const val ALARM_RELEASE_DELAY = 3000
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -67,6 +68,8 @@ class MainActivity : AppCompatActivity() {
     private var drowsyStartTime: Long = 0
     private var consecutiveEyesClosedFrames = 0
     private val earHistory = mutableListOf<Float>()
+    private var eyeOpenStartTime: Long = 0
+    private var isAlarmActive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -243,6 +246,7 @@ class MainActivity : AppCompatActivity() {
         var shouldAlarm = false
 
         if (filteredEAR < EAR_THRESHOLD) {
+            eyeOpenStartTime = 0
             consecutiveEyesClosedFrames++
             if (consecutiveEyesClosedFrames >= CONSECUTIVE_FRAMES_THRESHOLD) {
                 if (!isDrowsy) {
@@ -264,6 +268,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             consecutiveEyesClosedFrames = 0
             if (mouthMAR > MAR_THRESHOLD) {
+                eyeOpenStartTime = 0
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
@@ -278,8 +283,21 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                resetDrowsyState()
-                statusMessage = "Eye Open"
+                if (isAlarmActive) {
+                    if (eyeOpenStartTime == 0) {
+                        eyeOpenStartTime = System.currentTimeMillis()
+                    }
+                    val eyeOpenDuration = System.currentTimeMillis() - eyeOpenStartTime
+                    if (eyeOpenDuration >= ALARM_RELEASE_DELAY) {
+                        resetDrowsyState()
+                        statusMessage = "Eye Open"
+                    } else {
+                        statusMessage = "Releasing... ${(ALARM_RELEASE_DELAY - eyeOpenDuration) / 1000}s"
+                    }
+                } else {
+                    resetDrowsyState()
+                    statusMessage = "Eye Open"
+                }
             }
         }
 
@@ -287,6 +305,7 @@ class MainActivity : AppCompatActivity() {
 
         if (shouldAlarm && mediaPlayer?.isPlaying != true) {
             playAlarm()
+            isAlarmActive = true
         }
     }
 
@@ -298,6 +317,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun resetDrowsyState() {
         isDrowsy = false
+        isAlarmActive = false
+        eyeOpenStartTime = 0
         stopAlarm()
         earHistory.clear()
         consecutiveEyesClosedFrames = 0
