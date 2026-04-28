@@ -33,13 +33,13 @@
             android:name=".ContactsActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
-            android:label="Emergency Contacts"
+            android:label="紧急联系人"
             android:screenOrientation="portrait" />
 
         <activity
             android:name="com.example.drowze.DetectionDemoActivity"
             android:exported="false"
-            android:label="Detection Demo"
+            android:label="检测演示"
             android:screenOrientation="portrait"
             android:parentActivityName=".MainActivity" />
 

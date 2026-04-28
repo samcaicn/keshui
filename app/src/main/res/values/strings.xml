@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">drowze</string>
-    <string name="detection_active">drowze detection is active</string>
-    <string name="detection_inactive">drowze detection is inactive</string>
-    <string name="add_contact">Add Contact</string>
-    <string name="manage_contacts">Manage Emergency Contacts</string>
-    <string name="no_contacts">No emergency contacts added yet</string>
-    <string name="alert_message">EMERGENCY ALERT: Driver drowze detected!</string>
-    <string name="alert_sent">Alert sent to emergency contacts</string>
-    <string name="alert_failed">Failed to send alert</string>
-    <string name="permissions_required">Camera and SMS permissions are required</string>
+    <string name="app_name">keshui</string>
+    <string name="app_name_cn">瞌睡监测</string>
+    <string name="detection_active">瞌睡监测已启动</string>
+    <string name="detection_inactive">瞌睡监测已停止</string>
+    <string name="add_contact">添加联系人</string>
+    <string name="manage_contacts">管理紧急联系人</string>
+    <string name="no_contacts">暂无紧急联系人</string>
+    <string name="alert_message">紧急警报：检测到司机打瞌睡！</string>
+    <string name="alert_sent">警报已发送给紧急联系人</string>
+    <string name="alert_failed">发送警报失败</string>
+    <string name="permissions_required">需要相机和短信权限</string>
 </resources>
