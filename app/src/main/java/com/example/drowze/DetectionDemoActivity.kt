@@ -42,9 +42,12 @@ class DetectionDemoActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 20
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
-        private const val EAR_THRESHOLD = 0.38f
+        private const val EAR_THRESHOLD = 0.42f
         private const val DROWSY_TIME_THRESHOLD = 3000L
-        private const val CONSECUTIVE_FRAMES_THRESHOLD = 3
+        private const val CONSECUTIVE_FRAMES_THRESHOLD = 5
+        private const val EAR_HISTORY_SIZE = 5
+        private const val MIN_VALID_EAR = 0.05f
+        private const val MAX_VALID_EAR = 1.0f
     }
 
     private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
@@ -61,6 +64,7 @@ class DetectionDemoActivity : AppCompatActivity() {
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
     private var consecutiveEyesClosedFrames = 0
+    private val earHistory = mutableListOf<Float>()
 
     private val eyePaint = Paint().apply {
         color = Color.GREEN
@@ -241,16 +245,25 @@ class DetectionDemoActivity : AppCompatActivity() {
             landmarks[362], landmarks[373], landmarks[374]
         )
 
-        val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
+        var avgEAR = (leftEyeEAR + rightEyeEAR) / 2
+        
+        avgEAR = validateEAR(avgEAR)
+        
+        earHistory.add(avgEAR)
+        if (earHistory.size > EAR_HISTORY_SIZE) {
+            earHistory.removeFirst()
+        }
+        
+        val filteredEAR = calculateFilteredEAR()
 
         val mouthMAR = calculateMAR(
             landmarks[13], landmarks[14], landmarks[78],
             landmarks[308], landmarks[61], landmarks[291]
         )
 
-        detectionInfoText.text = "EAR: ${String.format("%.3f", avgEAR)}\nMAR: ${String.format("%.3f", mouthMAR)}"
+        detectionInfoText.text = "EAR: ${String.format("%.3f", filteredEAR)}\nMAR: ${String.format("%.3f", mouthMAR)}"
 
-        if (avgEAR < EAR_THRESHOLD) {
+        if (filteredEAR < EAR_THRESHOLD) {
             consecutiveEyesClosedFrames++
             if (consecutiveEyesClosedFrames >= CONSECUTIVE_FRAMES_THRESHOLD) {
                 if (!isDrowsy) {
@@ -286,6 +299,30 @@ class DetectionDemoActivity : AppCompatActivity() {
 
     private fun resetDrowsyState() {
         isDrowsy = false
+        earHistory.clear()
+        consecutiveEyesClosedFrames = 0
+    }
+    
+    private fun validateEAR(ear: Float): Float {
+        if (ear < MIN_VALID_EAR || ear > MAX_VALID_EAR) {
+            return earHistory.lastOrNull() ?: EAR_THRESHOLD
+        }
+        return ear
+    }
+    
+    private fun calculateFilteredEAR(): Float {
+        if (earHistory.isEmpty()) {
+            return EAR_THRESHOLD + 0.1f
+        }
+        val sorted = earHistory.sorted()
+        val startIndex = sorted.size / 4
+        val endIndex = sorted.size * 3 / 4
+        val filtered = sorted.subList(startIndex, endIndex)
+        return if (filtered.isEmpty()) {
+            earHistory.average().toFloat()
+        } else {
+            filtered.average().toFloat()
+        }
     }
 
     private fun calculateEAR(
