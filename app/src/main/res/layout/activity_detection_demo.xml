@@ -64,7 +64,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="EAR"
+                        android:text="参数1"
                         android:textColor="@android:color/darker_gray"
                         android:textSize="14sp" />
 
@@ -105,7 +105,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="EAR: ---\nMAR: ---"
+                android:text="参数1: ---\n参数2: ---"
                 android:textColor="@android:color/black"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -115,7 +115,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:gravity="center"
-                android:text="EAR &lt; 0.2 = Drowsy | MAR &gt; 0.5 = Yawning"
+                android:text="参数1 &lt; 0.2 = Drowsy | 参数2 &gt; 0.5 = Yawning"
                 android:textColor="@android:color/darker_gray"
                 android:textSize="10sp" />
         </LinearLayout>

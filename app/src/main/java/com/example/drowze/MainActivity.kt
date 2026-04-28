@@ -267,7 +267,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateStatus(message: String, ear: Float, mar: Float) {
         runOnUiThread {
-            statusText.text = "$message\nEAR: ${String.format("%.2f", ear)}\nMAR: ${String.format("%.2f", mar)}"
+            statusText.text = "$message\n参数1: ${String.format("%.2f", ear)}\n参数2: ${String.format("%.2f", mar)}"
         }
     }
 
