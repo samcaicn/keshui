@@ -42,7 +42,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 20
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
-        private const val EAR_THRESHOLD = 0.42f
+        private const val EAR_THRESHOLD = 0.21f
         private const val DROWSY_TIME_THRESHOLD = 3000L
         private const val CONSECUTIVE_FRAMES_THRESHOLD = 5
         private const val EAR_HISTORY_SIZE = 5
@@ -106,7 +106,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         if (allPermissionsGranted()) {
             setupFaceLandmarker()
             startButton.isEnabled = true
-            statusText.text = "Ready - Tap Start to begin detection"
+            statusText.text = "Ready - Eye Open"
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
             statusText.text = "Waiting for camera permission..."
@@ -153,7 +153,7 @@ class DetectionDemoActivity : AppCompatActivity() {
     private fun stopDetection() {
         isDetecting = false
         startButton.text = "Start Detection"
-        statusText.text = "Detection stopped"
+        statusText.text = "Detection stopped - Eye Open"
         resetDrowsyState()
 
         try {
@@ -227,7 +227,7 @@ class DetectionDemoActivity : AppCompatActivity() {
 
     private fun processDetectionResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
-            updateStatus("No face detected", Color.GRAY)
+            updateStatus("No face detected - Eye Open", Color.GRAY)
             detectionInfoText.text = "EAR: ---\nMAR: ---"
             resetDrowsyState()
             return
@@ -269,15 +269,17 @@ class DetectionDemoActivity : AppCompatActivity() {
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
-                    updateStatus("Eyes closing...", Color.YELLOW)
+                    updateStatus("Eye Closed", Color.YELLOW)
                 } else {
                     val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
                     if (drowsyDuration >= 2000) {
-                        updateStatus("DROWSY! Eyes closed ${drowsyDuration / 1000}s", Color.RED)
+                        updateStatus("DROWSY ${drowsyDuration / 1000}s", Color.RED)
                     } else {
-                        updateStatus("Eyes closed (${drowsyDuration / 1000}s)", Color.YELLOW)
+                        updateStatus("Eye Closed", Color.YELLOW)
                     }
                 }
+            } else {
+                updateStatus("Eye Open", Color.GREEN)
             }
         } else {
             consecutiveEyesClosedFrames = 0
@@ -285,14 +287,14 @@ class DetectionDemoActivity : AppCompatActivity() {
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
-                    updateStatus("Yawning detected!", Color.YELLOW)
+                    updateStatus("Yawning", Color.YELLOW)
                 } else {
                     val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                    updateStatus("DROWSY! Yawning ${yawnDuration / 1000}s", Color.RED)
+                    updateStatus("Yawning ${yawnDuration / 1000}s", Color.RED)
                 }
             } else {
                 resetDrowsyState()
-                updateStatus("Alert - Watching you", Color.GREEN)
+                updateStatus("Eye Open", Color.GREEN)
             }
         }
     }
@@ -379,7 +381,7 @@ class DetectionDemoActivity : AppCompatActivity() {
             if (allPermissionsGranted()) {
                 setupFaceLandmarker()
                 startButton.isEnabled = true
-                statusText.text = "Ready - Tap Start to begin detection"
+                statusText.text = "Ready - Eye Open"
             } else {
                 Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show()
                 finish()

@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CAMERA
         )
 
-        private const val EAR_THRESHOLD = 0.42f
+        private const val EAR_THRESHOLD = 0.21f
         private const val DROWSY_TIME_THRESHOLD = 5000
         private const val EYES_CLOSED_TIME_THRESHOLD = 3000
         private const val MAR_THRESHOLD = 0.65f
@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
 
             faceLandmarker = FaceLandmarker.createFromOptions(this, options)
             Log.d(TAG, "FaceLandmarker initialized successfully")
-            updateStatus("FaceLandmarker initialized", 0f, 0f)
+            updateStatus("Ready - Eye Open", 0f, 0f)
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up FaceLandmarker", e)
             Toast.makeText(this, "Failed to setup face detection", Toast.LENGTH_LONG).show()
@@ -130,7 +130,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "Camera bound to lifecycle")
 
                 setupFrameCapture()
-                updateStatus("Camera started", 0f, 0f)
+                updateStatus("Camera started - Eye Open", 0f, 0f)
             } catch (e: Exception) {
                 Log.e(TAG, "Use case binding failed", e)
                 updateStatus("Failed to start camera: ${e.message}", 0f, 0f)
@@ -205,7 +205,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun processDetectionResult(result: FaceLandmarkerResult) {
         if (result.faceLandmarks().isEmpty()) {
-            updateStatus("No face detected", 0f, 0f)
+            updateStatus("No face detected - Eye Open", 0f, 0f)
             resetDrowsyState()
             return
         }
@@ -248,18 +248,18 @@ class MainActivity : AppCompatActivity() {
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
-                    statusMessage = "Eyes closed"
+                    statusMessage = "Eye Closed"
                 } else {
                     val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
                     if (drowsyDuration >= EYES_CLOSED_TIME_THRESHOLD) {
-                        statusMessage = "Drowsy for ${drowsyDuration / 1000} sec"
+                        statusMessage = "Drowsy ${drowsyDuration / 1000}s"
                         shouldAlarm = true
                     } else {
-                        statusMessage = "Eyes closed"
+                        statusMessage = "Eye Closed"
                     }
                 }
             } else {
-                statusMessage = "Checking..."
+                statusMessage = "Eye Open"
             }
         } else {
             consecutiveEyesClosedFrames = 0
@@ -267,19 +267,19 @@ class MainActivity : AppCompatActivity() {
                 if (!isDrowsy) {
                     isDrowsy = true
                     drowsyStartTime = System.currentTimeMillis()
-                    statusMessage = "Yawning detected"
+                    statusMessage = "Yawning"
                 } else {
                     val yawnDuration = System.currentTimeMillis() - drowsyStartTime
                     if (yawnDuration >= YAWN_TIME_THRESHOLD) {
-                        statusMessage = "Yawning for ${yawnDuration / 1000} sec"
+                        statusMessage = "Yawning ${yawnDuration / 1000}s"
                         shouldAlarm = true
                     } else {
-                        statusMessage = "Yawning detected"
+                        statusMessage = "Yawning"
                     }
                 }
             } else {
                 resetDrowsyState()
-                statusMessage = "Alert"
+                statusMessage = "Eye Open"
             }
         }
 
@@ -292,7 +292,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateStatus(message: String, ear: Float, mar: Float) {
         runOnUiThread {
-            statusText.text = "$message\n参数1: ${String.format("%.2f", ear)}\n参数2: ${String.format("%.2f", mar)}"
+            statusText.text = "$message\nEAR: ${String.format("%.2f", ear)}\nMAR: ${String.format("%.2f", mar)}"
         }
     }
 
