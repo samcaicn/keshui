@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CAMERA
         )
 
-        private const val EAR_THRESHOLD = 0.28f
+        private const val EAR_THRESHOLD = 0.38f
         private const val DROWSY_TIME_THRESHOLD = 5000
         private const val EYES_CLOSED_TIME_THRESHOLD = 3000
         private const val MAR_THRESHOLD = 0.65f
@@ -219,6 +219,8 @@ class MainActivity : AppCompatActivity() {
         )
 
         val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
+        
+        Log.d(TAG, "EAR - Left: ${String.format("%.3f", leftEyeEAR)}, Right: ${String.format("%.3f", rightEyeEAR)}, Avg: ${String.format("%.3f", avgEAR)}, Threshold: $EAR_THRESHOLD")
 
         val mouthMAR = calculateMAR(
             landmarks[10], landmarks[18], landmarks[61], landmarks[291]

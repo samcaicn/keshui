@@ -42,7 +42,7 @@ class DetectionDemoActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 20
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
-        private const val EAR_THRESHOLD = 0.28f
+        private const val EAR_THRESHOLD = 0.38f
         private const val DROWSY_TIME_THRESHOLD = 3000L
         private const val CONSECUTIVE_FRAMES_THRESHOLD = 3
     }
