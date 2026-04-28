@@ -42,8 +42,9 @@ class DetectionDemoActivity : AppCompatActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 20
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
-        private const val EAR_THRESHOLD = 0.25f
+        private const val EAR_THRESHOLD = 0.28f
         private const val DROWSY_TIME_THRESHOLD = 3000L
+        private const val CONSECUTIVE_FRAMES_THRESHOLD = 3
     }
 
     private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>? = null
@@ -59,6 +60,7 @@ class DetectionDemoActivity : AppCompatActivity() {
 
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
+    private var consecutiveEyesClosedFrames = 0
 
     private val eyePaint = Paint().apply {
         color = Color.GREEN
@@ -230,13 +232,13 @@ class DetectionDemoActivity : AppCompatActivity() {
         val landmarks = result.faceLandmarks()[0]
 
         val leftEyeEAR = calculateEAR(
-            landmarks[33], landmarks[159], landmarks[160],
-            landmarks[133], landmarks[144], landmarks[145]
+            landmarks[133], landmarks[159], landmarks[160],
+            landmarks[33], landmarks[144], landmarks[145]
         )
 
         val rightEyeEAR = calculateEAR(
-            landmarks[362], landmarks[386], landmarks[387],
-            landmarks[263], landmarks[373], landmarks[374]
+            landmarks[263], landmarks[386], landmarks[387],
+            landmarks[362], landmarks[373], landmarks[374]
         )
 
         val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
@@ -249,30 +251,36 @@ class DetectionDemoActivity : AppCompatActivity() {
         detectionInfoText.text = "EAR: ${String.format("%.3f", avgEAR)}\nMAR: ${String.format("%.3f", mouthMAR)}"
 
         if (avgEAR < EAR_THRESHOLD) {
-            if (!isDrowsy) {
-                isDrowsy = true
-                drowsyStartTime = System.currentTimeMillis()
-                updateStatus("Eyes closing...", Color.YELLOW)
-            } else {
-                val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
-                if (drowsyDuration >= 2000) {
-                    updateStatus("DROWSY! Eyes closed ${drowsyDuration / 1000}s", Color.RED)
+            consecutiveEyesClosedFrames++
+            if (consecutiveEyesClosedFrames >= CONSECUTIVE_FRAMES_THRESHOLD) {
+                if (!isDrowsy) {
+                    isDrowsy = true
+                    drowsyStartTime = System.currentTimeMillis()
+                    updateStatus("Eyes closing...", Color.YELLOW)
                 } else {
-                    updateStatus("Eyes closed (${drowsyDuration / 1000}s)", Color.YELLOW)
+                    val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
+                    if (drowsyDuration >= 2000) {
+                        updateStatus("DROWSY! Eyes closed ${drowsyDuration / 1000}s", Color.RED)
+                    } else {
+                        updateStatus("Eyes closed (${drowsyDuration / 1000}s)", Color.YELLOW)
+                    }
                 }
             }
-        } else if (mouthMAR > 0.5) {
-            if (!isDrowsy) {
-                isDrowsy = true
-                drowsyStartTime = System.currentTimeMillis()
-                updateStatus("Yawning detected!", Color.YELLOW)
-            } else {
-                val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                updateStatus("DROWSY! Yawning ${yawnDuration / 1000}s", Color.RED)
-            }
         } else {
-            resetDrowsyState()
-            updateStatus("Alert - Watching you", Color.GREEN)
+            consecutiveEyesClosedFrames = 0
+            if (mouthMAR > 0.5) {
+                if (!isDrowsy) {
+                    isDrowsy = true
+                    drowsyStartTime = System.currentTimeMillis()
+                    updateStatus("Yawning detected!", Color.YELLOW)
+                } else {
+                    val yawnDuration = System.currentTimeMillis() - drowsyStartTime
+                    updateStatus("DROWSY! Yawning ${yawnDuration / 1000}s", Color.RED)
+                }
+            } else {
+                resetDrowsyState()
+                updateStatus("Alert - Watching you", Color.GREEN)
+            }
         }
     }
 

@@ -44,11 +44,12 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.CAMERA
         )
 
-        private const val EAR_THRESHOLD = 0.25f
+        private const val EAR_THRESHOLD = 0.28f
         private const val DROWSY_TIME_THRESHOLD = 5000
         private const val EYES_CLOSED_TIME_THRESHOLD = 3000
         private const val MAR_THRESHOLD = 0.65f
         private const val YAWN_TIME_THRESHOLD = 1500
+        private const val CONSECUTIVE_FRAMES_THRESHOLD = 3
     }
 
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
@@ -61,6 +62,7 @@ class MainActivity : AppCompatActivity() {
 
     private var isDrowsy = false
     private var drowsyStartTime: Long = 0
+    private var consecutiveEyesClosedFrames = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -207,13 +209,13 @@ class MainActivity : AppCompatActivity() {
         val landmarks = result.faceLandmarks()[0]
 
         val leftEyeEAR = calculateEAR(
-            landmarks[33], landmarks[159], landmarks[160],
-            landmarks[133], landmarks[144], landmarks[145]
+            landmarks[133], landmarks[159], landmarks[160],
+            landmarks[33], landmarks[144], landmarks[145]
         )
 
         val rightEyeEAR = calculateEAR(
-            landmarks[362], landmarks[386], landmarks[387],
-            landmarks[263], landmarks[373], landmarks[374]
+            landmarks[263], landmarks[386], landmarks[387],
+            landmarks[362], landmarks[373], landmarks[374]
         )
 
         val avgEAR = (leftEyeEAR + rightEyeEAR) / 2
@@ -226,36 +228,44 @@ class MainActivity : AppCompatActivity() {
         var shouldAlarm = false
 
         if (avgEAR < EAR_THRESHOLD) {
-            if (!isDrowsy) {
-                isDrowsy = true
-                drowsyStartTime = System.currentTimeMillis()
-                statusMessage = "Eyes closed"
-            } else {
-                val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
-                if (drowsyDuration >= EYES_CLOSED_TIME_THRESHOLD) {
-                    statusMessage = "Drowsy for ${drowsyDuration / 1000} sec"
-                    shouldAlarm = true
-                } else {
+            consecutiveEyesClosedFrames++
+            if (consecutiveEyesClosedFrames >= CONSECUTIVE_FRAMES_THRESHOLD) {
+                if (!isDrowsy) {
+                    isDrowsy = true
+                    drowsyStartTime = System.currentTimeMillis()
                     statusMessage = "Eyes closed"
-                }
-            }
-        } else if (mouthMAR > MAR_THRESHOLD) {
-            if (!isDrowsy) {
-                isDrowsy = true
-                drowsyStartTime = System.currentTimeMillis()
-                statusMessage = "Yawning detected"
-            } else {
-                val yawnDuration = System.currentTimeMillis() - drowsyStartTime
-                if (yawnDuration >= YAWN_TIME_THRESHOLD) {
-                    statusMessage = "Yawning for ${yawnDuration / 1000} sec"
-                    shouldAlarm = true
                 } else {
-                    statusMessage = "Yawning detected"
+                    val drowsyDuration = System.currentTimeMillis() - drowsyStartTime
+                    if (drowsyDuration >= EYES_CLOSED_TIME_THRESHOLD) {
+                        statusMessage = "Drowsy for ${drowsyDuration / 1000} sec"
+                        shouldAlarm = true
+                    } else {
+                        statusMessage = "Eyes closed"
+                    }
                 }
+            } else {
+                statusMessage = "Checking..."
             }
         } else {
-            resetDrowsyState()
-            statusMessage = "Alert"
+            consecutiveEyesClosedFrames = 0
+            if (mouthMAR > MAR_THRESHOLD) {
+                if (!isDrowsy) {
+                    isDrowsy = true
+                    drowsyStartTime = System.currentTimeMillis()
+                    statusMessage = "Yawning detected"
+                } else {
+                    val yawnDuration = System.currentTimeMillis() - drowsyStartTime
+                    if (yawnDuration >= YAWN_TIME_THRESHOLD) {
+                        statusMessage = "Yawning for ${yawnDuration / 1000} sec"
+                        shouldAlarm = true
+                    } else {
+                        statusMessage = "Yawning detected"
+                    }
+                }
+            } else {
+                resetDrowsyState()
+                statusMessage = "Alert"
+            }
         }
 
         updateStatus(statusMessage, avgEAR, mouthMAR)
